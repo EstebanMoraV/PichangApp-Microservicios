@@ -23,8 +23,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        ex.printStackTrace(); // Esto imprimirá el error real en tu consola de Spring Boot
         ErrorResponse errorResponse = new ErrorResponse(
-                "Ocurrió un error interno en el servidor",
+                "Ocurrió un error interno en el servidor: " + ex.getMessage(),
                 "INTERNAL_SERVER_ERROR",
                 Instant.now()
         );
