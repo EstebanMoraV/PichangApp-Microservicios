@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 
@@ -31,6 +32,9 @@ public class FcmService {
     @Value("${google.application.credentials:}")
     private String credentialsPath;
 
+    @Value("${FIREBASE_CREDENTIALS_JSON:}")
+    private String firebaseCredentialsJson;
+
     @Value("${fcm.project-id:}")
     private String projectId;
 
@@ -38,18 +42,29 @@ public class FcmService {
 
     @PostConstruct
     public void init() {
-        if (credentialsPath == null || credentialsPath.isBlank()) {
-            log.warn("⚠️ GOOGLE_APPLICATION_CREDENTIALS no configurado. " +
+        if ((credentialsPath == null || credentialsPath.isBlank()) && (firebaseCredentialsJson == null || firebaseCredentialsJson.isBlank())) {
+            log.warn("⚠️ Credenciales de FCM no configuradas. " +
                     "FCM push notifications estarán deshabilitadas. " +
-                    "Para habilitar FCM, configura la variable de entorno con la ruta al archivo serviceAccountKey.json");
+                    "Para habilitar FCM, configura firebase.credentials.json o google.application.credentials");
             return;
         }
 
-        try (FileInputStream serviceAccount = new FileInputStream(credentialsPath)) {
-            FirebaseOptions options = FirebaseOptions.builder()
-                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
-                    .setProjectId(projectId)
-                    .build();
+        try {
+            FirebaseOptions options;
+            
+            if (firebaseCredentialsJson != null && !firebaseCredentialsJson.isBlank()) {
+                options = FirebaseOptions.builder()
+                        .setCredentials(GoogleCredentials.fromStream(new ByteArrayInputStream(firebaseCredentialsJson.getBytes())))
+                        .setProjectId(projectId)
+                        .build();
+            } else {
+                try (FileInputStream serviceAccount = new FileInputStream(credentialsPath)) {
+                    options = FirebaseOptions.builder()
+                            .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                            .setProjectId(projectId)
+                            .build();
+                }
+            }
 
             if (FirebaseApp.getApps().isEmpty()) {
                 FirebaseApp.initializeApp(options);
