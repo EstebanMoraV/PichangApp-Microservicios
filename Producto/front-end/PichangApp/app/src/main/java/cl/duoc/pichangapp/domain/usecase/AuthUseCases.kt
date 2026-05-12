@@ -2,6 +2,7 @@ package cl.duoc.pichangapp.domain.usecase
 
 import cl.duoc.pichangapp.core.util.Result
 import cl.duoc.pichangapp.data.model.LoginRequest
+import cl.duoc.pichangapp.data.model.RegisterRequest
 import cl.duoc.pichangapp.data.repository.AuthRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject

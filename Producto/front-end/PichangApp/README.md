@@ -13,6 +13,12 @@ PichangApp es una aplicación Android desarrollada para organizar eventos deport
 *   **Carga de Imágenes:** Coil
 *   **Arquitectura:** Clean Architecture (UI -> ViewModel -> UseCase -> Repository -> DataSource)
 
+## Actualizaciones Recientes (Mayo 2026)
+
+*   **Recursos Visuales:** Se han añadido los iconos adaptativos (`ic_launcher` e `ic_launcher_round`) para cumplir con los estándares de Android y corregir errores de compilación por recursos faltantes.
+*   **Estabilidad del Build:** Se corrigieron múltiples errores de sintaxis en imports de Compose, referencias no resueltas de modelos (`RegisterRequest`) e inconsistencias en la API de Material 3 (`PullToRefreshContainer` migrado a `PullToRefreshBox`).
+*   **Optimización:** El proyecto ahora compila limpiamente mediante `./gradlew compileDebugKotlin`.
+
 ## Arquitectura del Proyecto
 
 El código está estructurado bajo `cl.duoc.pichangapp` en los siguientes paquetes principales:
