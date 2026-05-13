@@ -25,6 +25,8 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     private final List<String> publicEndpoints = List.of(
             "/api/v1/auth/login",
             "/api/v1/auth/register",
+            "/api/v1/auth/verify-code",
+            "/api/v1/auth/resend-code",
             "/actuator/health",
             "/health",
             "/ws/**",
