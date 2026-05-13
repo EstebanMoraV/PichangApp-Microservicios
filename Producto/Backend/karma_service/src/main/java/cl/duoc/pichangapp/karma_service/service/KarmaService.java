@@ -30,7 +30,7 @@ public class KarmaService {
     private final KarmaHistoryRepository karmaHistoryRepository;
     private final RestTemplate restTemplate;
 
-    @Value("${USERS_SERVICE_URL:http://localhost:8083}")
+    @Value("${users.service.url}")
     private String usersServiceUrl;
 
     private static final int INITIAL_KARMA = 100;
