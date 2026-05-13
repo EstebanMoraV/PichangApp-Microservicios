@@ -40,8 +40,29 @@ class HomeViewModel @Inject constructor(
     private fun loadData() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
-            // Retrieve userId, defaulting to "1" for testing based on backend specs
-            val userId = tokenDataStore.userIdFlow.firstOrNull() ?: "1"
+            
+            val token = tokenDataStore.tokenFlow.firstOrNull()
+            var userId = "1" // Default fallback
+            
+            if (!token.isNullOrEmpty()) {
+                try {
+                    val parts = token.split(".")
+                    if (parts.size == 3) {
+                        val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE))
+                        val jsonObject = org.json.JSONObject(payload)
+                        // Adjust claim key based on your backend JWT structure, commonly 'sub' or 'id' or 'userId'
+                        if (jsonObject.has("userId")) {
+                            userId = jsonObject.getString("userId")
+                        } else if (jsonObject.has("id")) {
+                            userId = jsonObject.getString("id")
+                        } else if (jsonObject.has("sub")) {
+                            userId = jsonObject.getString("sub")
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
             
             // Load User
             getUserProfileUseCase(userId).collect { result ->
@@ -55,7 +76,15 @@ class HomeViewModel @Inject constructor(
             // Load Karma
             getKarmaUseCase(userId).collect { result ->
                 if (result is Result.Success) {
-                    _state.value = _state.value.copy(karma = result.data)
+                    val score = result.data.puntaje ?: 0
+                    val calculatedCategory = when {
+                        score >= 80 -> "Excelente"
+                        score >= 60 -> "Bueno"
+                        score >= 40 -> "Regular"
+                        else -> "Bajo"
+                    }
+                    val updatedKarma = result.data.copy(categoria = calculatedCategory)
+                    _state.value = _state.value.copy(karma = updatedKarma)
                 }
             }
         }

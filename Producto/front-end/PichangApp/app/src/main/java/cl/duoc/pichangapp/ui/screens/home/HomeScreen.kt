@@ -93,11 +93,13 @@ fun HomeScreen(
                         )
                     }
 
-                    val badgeColor = when (karma?.categoria?.lowercase()) {
-                        "excelente", "oro" -> KarmaExcellent
-                        "bueno", "plata" -> KarmaGood
-                        "regular", "bronce" -> KarmaRegular
-                        else -> KarmaLow
+                    val category = karma?.categoria?.lowercase() ?: "sin categoría"
+                    val badgeColor = when (category) {
+                        "excelente" -> KarmaExcellent
+                        "bueno" -> KarmaGood
+                        "regular" -> KarmaRegular
+                        "bajo" -> KarmaLow
+                        else -> Color.Gray
                     }
 
                     Box(
@@ -124,12 +126,14 @@ fun HomeScreen(
                 QuickActionCard(
                     title = "Crear Partido",
                     icon = Icons.Filled.Add,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    onClick = { navController?.navigate("events?tab=crear-partido") }
                 )
                 QuickActionCard(
                     title = "Mis Eventos",
                     icon = Icons.Filled.Event,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    onClick = { navController?.navigate("events?tab=mis-eventos") }
                 )
             }
         }
@@ -137,10 +141,16 @@ fun HomeScreen(
 }
 
 @Composable
-fun QuickActionCard(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier) {
+fun QuickActionCard(
+    title: String, 
+    icon: androidx.compose.ui.graphics.vector.ImageVector, 
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
+) {
     Card(
         modifier = modifier.height(100.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        onClick = onClick
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),

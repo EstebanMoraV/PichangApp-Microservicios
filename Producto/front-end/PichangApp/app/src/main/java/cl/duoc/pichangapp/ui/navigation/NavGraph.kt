@@ -29,6 +29,7 @@ import cl.duoc.pichangapp.ui.screens.karma.KarmaScreen
 import cl.duoc.pichangapp.ui.screens.notifications.NotificationsScreen
 import cl.duoc.pichangapp.ui.screens.profile.ProfileScreen
 import cl.duoc.pichangapp.ui.screens.splash.SplashScreen
+import cl.duoc.pichangapp.ui.screens.events.EventsScreen
 
 sealed class Screen(val route: String, val title: String? = null, val icon: ImageVector? = null) {
     object Splash : Screen("splash")
@@ -132,6 +133,10 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
                         }
                     }
                 )
+            }
+            composable("events?tab={tab}") { backStackEntry ->
+                val tab = backStackEntry.arguments?.getString("tab") ?: "mis-eventos"
+                EventsScreen(navController = navController, initialTab = tab)
             }
             composable(Screen.Home.route) {
                 HomeScreen(navController = navController)
