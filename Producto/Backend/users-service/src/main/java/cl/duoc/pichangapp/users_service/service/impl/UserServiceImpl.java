@@ -4,11 +4,14 @@ import cl.duoc.pichangapp.users_service.dto.ChangePasswordRequest;
 import cl.duoc.pichangapp.users_service.dto.JWTResponse;
 import cl.duoc.pichangapp.users_service.dto.LoginRequest;
 import cl.duoc.pichangapp.users_service.dto.RegisterRequest;
+import cl.duoc.pichangapp.users_service.dto.ResendCodeRequest;
 import cl.duoc.pichangapp.users_service.dto.UpdateProfileRequest;
 import cl.duoc.pichangapp.users_service.dto.UserDTO;
+import cl.duoc.pichangapp.users_service.dto.VerifyCodeRequest;
 import cl.duoc.pichangapp.users_service.model.User; // <- cambia si tu User está en otro paquete
 import cl.duoc.pichangapp.users_service.repository.UserRepository;
 import cl.duoc.pichangapp.users_service.security.JwtProvider;
+import cl.duoc.pichangapp.users_service.service.EmailService;
 import cl.duoc.pichangapp.users_service.service.UserService;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,7 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.Random;
 
 /**
  * Implementación del servicio de usuarios sin excepciones personalizadas.
@@ -29,13 +34,16 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
+    private final EmailService emailService;
 
     public UserServiceImpl(UserRepository userRepository,
                            PasswordEncoder passwordEncoder,
-                           JwtProvider jwtProvider) {
+                           JwtProvider jwtProvider,
+                           EmailService emailService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtProvider = jwtProvider;
+        this.emailService = emailService;
     }
 
     @Override
@@ -64,7 +72,16 @@ public class UserServiceImpl implements UserService {
         user.setApellido(request.apellido().trim());
         user.setEnabled(false);
 
+        // Generar código de verificación de 6 dígitos
+        String code = String.format("%06d", new Random().nextInt(1000000));
+        user.setVerificationCode(code);
+        user.setVerificationCodeExpiry(LocalDateTime.now().plusMinutes(5));
+
         User saved = userRepository.save(user);
+
+        // Enviar correo de verificación
+        emailService.sendVerificationEmail(saved.getCorreo(), code);
+
         return mapToDto(saved);
     }
 
@@ -143,6 +160,46 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
         user.setEnabled(true);
         userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void verifyCode(VerifyCodeRequest request) {
+        String correo = request.email().toLowerCase().trim();
+        User user = userRepository.findByCorreo(correo)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        if (user.getVerificationCode() == null || !user.getVerificationCode().equals(request.code())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Código inválido");
+        }
+
+        if (LocalDateTime.now().isAfter(user.getVerificationCodeExpiry())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Código expirado, solicita uno nuevo");
+        }
+
+        user.setEnabled(true);
+        user.setVerificationCode(null);
+        user.setVerificationCodeExpiry(null);
+        userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void resendCode(ResendCodeRequest request) {
+        String correo = request.email().toLowerCase().trim();
+        User user = userRepository.findByCorreo(correo)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        if (user.isEnabled()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El usuario ya está verificado");
+        }
+
+        String code = String.format("%06d", new Random().nextInt(1000000));
+        user.setVerificationCode(code);
+        user.setVerificationCodeExpiry(LocalDateTime.now().plusMinutes(5));
+        userRepository.save(user);
+
+        emailService.sendVerificationEmail(user.getCorreo(), code);
     }
 
     @Override

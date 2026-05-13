@@ -39,4 +39,10 @@ public class User {
     @Column(nullable = false)
     private boolean enabled = false;
     // Estado de verificación de la cuenta (true cuando el usuario está validado)
+
+    @Column(length = 6)
+    private String verificationCode;
+
+    @Column
+    private java.time.LocalDateTime verificationCodeExpiry;
 }

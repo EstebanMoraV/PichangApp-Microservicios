@@ -53,6 +53,16 @@ public interface UserService {
      * Verifica si un usuario existe por su ID.
      */
     boolean existsById(Integer id);
+
+    /**
+     * Verifica el código de correo.
+     */
+    void verifyCode(VerifyCodeRequest request);
+
+    /**
+     * Reenvía el código de verificación por correo.
+     */
+    void resendCode(ResendCodeRequest request);
 }
 
 

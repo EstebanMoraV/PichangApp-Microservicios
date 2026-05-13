@@ -81,6 +81,26 @@ public class AuthController {
         userService.enableUser(id);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Verificar cuenta con código enviado por correo.
+     * POST /api/v1/auth/verify-code
+     */
+    @PostMapping("/auth/verify-code")
+    public ResponseEntity<String> verifyCode(@RequestBody VerifyCodeRequest request) {
+        userService.verifyCode(request);
+        return ResponseEntity.ok("Cuenta verificada exitosamente");
+    }
+
+    /**
+     * Reenviar código de verificación.
+     * POST /api/v1/auth/resend-code
+     */
+    @PostMapping("/auth/resend-code")
+    public ResponseEntity<String> resendCode(@RequestBody ResendCodeRequest request) {
+        userService.resendCode(request);
+        return ResponseEntity.ok("Código reenviado exitosamente");
+    }
 }
 
 
