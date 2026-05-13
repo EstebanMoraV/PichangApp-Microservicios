@@ -3,6 +3,7 @@ package cl.duoc.pichangapp.ui.screens.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cl.duoc.pichangapp.core.datastore.TokenDataStore
+import cl.duoc.pichangapp.core.util.JwtUtils
 import cl.duoc.pichangapp.core.util.Result
 import cl.duoc.pichangapp.data.model.KarmaDto
 import cl.duoc.pichangapp.data.model.UserDto
@@ -41,27 +42,21 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
             
+            // Prioridad 1: Extraer userId directamente del JWT (claim "sub")
+            // Prioridad 2: Leer userId guardado en DataStore
             val token = tokenDataStore.tokenFlow.firstOrNull()
-            var userId = "1" // Default fallback
+            val userId = if (!token.isNullOrEmpty()) {
+                JwtUtils.extractUserId(token)
+            } else {
+                null
+            } ?: tokenDataStore.userIdFlow.firstOrNull()
             
-            if (!token.isNullOrEmpty()) {
-                try {
-                    val parts = token.split(".")
-                    if (parts.size == 3) {
-                        val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE))
-                        val jsonObject = org.json.JSONObject(payload)
-                        // Adjust claim key based on your backend JWT structure, commonly 'sub' or 'id' or 'userId'
-                        if (jsonObject.has("userId")) {
-                            userId = jsonObject.getString("userId")
-                        } else if (jsonObject.has("id")) {
-                            userId = jsonObject.getString("id")
-                        } else if (jsonObject.has("sub")) {
-                            userId = jsonObject.getString("sub")
-                        }
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
+            if (userId.isNullOrEmpty()) {
+                _state.value = _state.value.copy(
+                    error = "No se pudo obtener el ID del usuario. Inicia sesión nuevamente.",
+                    isLoading = false
+                )
+                return@launch
             }
             
             // Load User

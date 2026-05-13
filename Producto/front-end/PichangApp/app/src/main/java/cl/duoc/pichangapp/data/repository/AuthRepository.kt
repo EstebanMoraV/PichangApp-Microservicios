@@ -1,6 +1,7 @@
 package cl.duoc.pichangapp.data.repository
 
 import cl.duoc.pichangapp.core.datastore.TokenDataStore
+import cl.duoc.pichangapp.core.util.JwtUtils
 import cl.duoc.pichangapp.core.util.Result
 import cl.duoc.pichangapp.data.model.LoginRequest
 import cl.duoc.pichangapp.data.model.RegisterRequest
@@ -25,9 +26,11 @@ class AuthRepository @Inject constructor(
                 val token = response.body()?.token ?: ""
                 tokenDataStore.saveToken(token)
                 
-                // For simplicity, we can decode the JWT to get the user ID if the backend doesn't return it
-                // Or if it returns it in AuthResponse, we save it here. Assuming we can query the user later or have ID=1 as mocked in Postman.
-                // We'll just save the token for now.
+                // Extraer userId del claim "sub" del JWT y guardarlo en DataStore
+                val userId = JwtUtils.extractUserId(token)
+                if (userId != null) {
+                    tokenDataStore.saveUserId(userId)
+                }
                 
                 emit(Result.Success(Unit))
             } else {
