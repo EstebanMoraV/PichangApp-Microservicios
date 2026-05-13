@@ -1,8 +1,10 @@
 package cl.duoc.pichangapp.data.model
 
+import com.google.gson.annotations.SerializedName
+
 data class KarmaDto(
-    val puntaje: Int,
-    val categoria: String // Bronce, Plata, Oro, Excelente, Bueno, Regular, Bajo
+    @SerializedName("karmaScore") val puntaje: Int = 0,
+    @SerializedName("category")   val categoria: String = "Sin categoría"
 )
 
 data class CheckInRequest(
