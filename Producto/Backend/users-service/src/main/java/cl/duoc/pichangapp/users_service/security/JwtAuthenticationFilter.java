@@ -27,6 +27,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getServletPath();
         return path.startsWith("/api/v1/auth/")
+                || path.equals("/api/v1/auth/verify-code")
+                || path.equals("/api/v1/auth/resend-code")
                 || path.equals("/error")
                 || path.startsWith("/actuator/")
                 || path.startsWith("/v3/api-docs")
