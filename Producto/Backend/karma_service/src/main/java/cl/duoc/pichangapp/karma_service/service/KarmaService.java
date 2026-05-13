@@ -82,8 +82,9 @@ public class KarmaService {
                 }
                 HttpEntity<?> entity = new HttpEntity<>(headers);
 
+                String url = usersServiceUrl + "/api/v1/users/" + userId + "/exists";
                 ResponseEntity<Boolean> response = restTemplate.exchange(
-                        usersServiceUrl + (usersServiceUrl.endsWith("/") ? "" : "/") + id + "/exists",
+                        url,
                         HttpMethod.GET,
                         entity,
                         Boolean.class);
