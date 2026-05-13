@@ -1,6 +1,7 @@
 package cl.duoc.pichangapp.core.network
 
 import cl.duoc.pichangapp.core.datastore.TokenDataStore
+import cl.duoc.pichangapp.core.util.SessionManager
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
@@ -8,7 +9,8 @@ import okhttp3.Response
 import javax.inject.Inject
 
 class AuthInterceptor @Inject constructor(
-    private val tokenDataStore: TokenDataStore
+    private val tokenDataStore: TokenDataStore,
+    private val sessionManager: SessionManager
 ) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -21,6 +23,15 @@ class AuthInterceptor @Inject constructor(
             requestBuilder.addHeader("Authorization", "Bearer $token")
         }
 
-        return chain.proceed(requestBuilder.build())
+        val response = chain.proceed(requestBuilder.build())
+
+        if (response.code == 401) {
+            runBlocking {
+                tokenDataStore.clearAuth()
+                sessionManager.logout()
+            }
+        }
+
+        return response
     }
 }

@@ -11,6 +11,6 @@ val Black = Color(0xFF000000)
 
 // Karma colors
 val KarmaExcellent = Color(0xFF2E7D32)
-val KarmaGood = Color(0xFF8BC34A)
-val KarmaRegular = Color(0xFFFFB300)
-val KarmaLow = Color(0xFFD32F2F)
+val KarmaGood = Color(0xFF1565C0)
+val KarmaRegular = Color(0xFFE65100)
+val KarmaLow = Color(0xFFB71C1C)

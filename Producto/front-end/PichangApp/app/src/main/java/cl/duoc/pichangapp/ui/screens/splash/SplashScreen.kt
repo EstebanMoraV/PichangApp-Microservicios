@@ -33,7 +33,7 @@ fun SplashScreen(
     LaunchedEffect(Unit) {
         alphaAnim.animateTo(
             targetValue = 1f,
-            animationSpec = tween(durationMillis = 1500)
+            animationSpec = tween(durationMillis = 1000)
         )
     }
 

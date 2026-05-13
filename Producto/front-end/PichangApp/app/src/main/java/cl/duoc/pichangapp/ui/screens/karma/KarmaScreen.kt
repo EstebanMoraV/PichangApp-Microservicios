@@ -44,8 +44,13 @@ import cl.duoc.pichangapp.ui.theme.KarmaGood
 import cl.duoc.pichangapp.ui.theme.KarmaLow
 import cl.duoc.pichangapp.ui.theme.KarmaRegular
 
+import androidx.navigation.NavController
+
 @Composable
-fun KarmaScreen(viewModel: KarmaViewModel = hiltViewModel()) {
+fun KarmaScreen(
+    navController: NavController? = null,
+    viewModel: KarmaViewModel = hiltViewModel()
+) {
     val state by viewModel.state.collectAsState()
 
     Column(

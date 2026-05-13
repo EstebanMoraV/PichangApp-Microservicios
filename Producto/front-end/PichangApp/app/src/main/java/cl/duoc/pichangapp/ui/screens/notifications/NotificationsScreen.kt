@@ -45,9 +45,14 @@ import cl.duoc.pichangapp.data.model.NotificationDto
 import cl.duoc.pichangapp.ui.theme.KarmaExcellent
 import cl.duoc.pichangapp.ui.theme.KarmaLow
 
+import androidx.navigation.NavController
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotificationsScreen(viewModel: NotificationsViewModel = hiltViewModel()) {
+fun NotificationsScreen(
+    navController: NavController? = null,
+    viewModel: NotificationsViewModel = hiltViewModel()
+) {
     val state by viewModel.state.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
 

@@ -33,7 +33,7 @@ class SplashViewModel @Inject constructor(
     private fun checkAuthStatus() {
         viewModelScope.launch {
             // Keep splash on screen for a minimum duration to show animation/logo
-            delay(2000L) 
+            delay(1000L) 
             
             val token = tokenDataStore.tokenFlow.firstOrNull()
             if (!token.isNullOrEmpty()) {

@@ -48,9 +48,7 @@ val bottomNavItems = listOf(
 )
 
 @Composable
-fun NavGraph() {
-    val navController = rememberNavController()
-    
+fun NavGraph(navController: NavHostController = rememberNavController()) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val showBottomBar = bottomNavItems.any { it.route == currentDestination?.route }
@@ -98,8 +96,10 @@ fun NavGraph() {
                     }
                 )
             }
-            composable(Screen.Login.route) {
+            composable(Screen.Login.route + "?mensaje={mensaje}") { backStackEntry ->
+                val mensaje = backStackEntry.arguments?.getString("mensaje")
                 LoginScreen(
+                    mensaje = mensaje,
                     onNavigateToHome = {
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
@@ -115,21 +115,32 @@ fun NavGraph() {
                     onNavigateBack = {
                         navController.popBackStack()
                     },
-                    onRegisterSuccess = {
-                        navController.navigate(Screen.Login.route) {
+                    onRegisterSuccess = { correo ->
+                        navController.navigate("verify-code/$correo") {
                             popUpTo(Screen.Register.route) { inclusive = true }
                         }
                     }
                 )
             }
+            composable("verify-code/{email}") { backStackEntry ->
+                val email = backStackEntry.arguments?.getString("email") ?: ""
+                cl.duoc.pichangapp.ui.screens.auth.VerifyCodeScreen(
+                    email = email,
+                    onVerifySuccess = {
+                        navController.navigate(Screen.Login.route + "?mensaje=Cuenta verificada, inicia sesión") {
+                            popUpTo("verify-code/{email}") { inclusive = true }
+                        }
+                    }
+                )
+            }
             composable(Screen.Home.route) {
-                HomeScreen()
+                HomeScreen(navController = navController)
             }
             composable(Screen.Karma.route) {
-                KarmaScreen()
+                KarmaScreen(navController = navController)
             }
             composable(Screen.Notifications.route) {
-                NotificationsScreen()
+                NotificationsScreen(navController = navController)
             }
             composable(Screen.Profile.route) {
                 ProfileScreen(

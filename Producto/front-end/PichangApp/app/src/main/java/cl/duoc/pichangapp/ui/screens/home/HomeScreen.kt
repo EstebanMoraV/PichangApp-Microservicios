@@ -37,8 +37,13 @@ import cl.duoc.pichangapp.ui.theme.KarmaGood
 import cl.duoc.pichangapp.ui.theme.KarmaLow
 import cl.duoc.pichangapp.ui.theme.KarmaRegular
 
+import androidx.navigation.NavController
+
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
+fun HomeScreen(
+    navController: NavController? = null,
+    viewModel: HomeViewModel = hiltViewModel()
+) {
     val state by viewModel.state.collectAsState()
 
     Column(

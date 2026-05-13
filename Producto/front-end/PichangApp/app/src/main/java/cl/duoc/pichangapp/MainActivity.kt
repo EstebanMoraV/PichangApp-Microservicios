@@ -12,18 +12,38 @@ import cl.duoc.pichangapp.ui.navigation.NavGraph
 import cl.duoc.pichangapp.ui.theme.PichangAppTheme
 import dagger.hilt.android.AndroidEntryPoint
 
+import androidx.compose.runtime.LaunchedEffect
+import cl.duoc.pichangapp.core.util.SessionManager
+import javax.inject.Inject
+import cl.duoc.pichangapp.ui.navigation.Screen
+import androidx.navigation.compose.rememberNavController
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var sessionManager: SessionManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+            val navController = rememberNavController()
+            
+            LaunchedEffect(Unit) {
+                sessionManager.logoutEvent.collect {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            }
+
             PichangAppTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    NavGraph()
+                    NavGraph(navController = navController)
                 }
             }
         }

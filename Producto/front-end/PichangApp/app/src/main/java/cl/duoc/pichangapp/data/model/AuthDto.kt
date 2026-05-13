@@ -16,3 +16,12 @@ data class RegisterRequest(
     val nombre: String,
     val apellido: String
 )
+
+data class VerifyCodeRequest(
+    val email: String,
+    val code: String
+)
+
+data class ResendCodeRequest(
+    val email: String
+)
