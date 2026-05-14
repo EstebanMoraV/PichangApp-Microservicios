@@ -148,17 +148,42 @@ fun KarmaScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
             
-            // Mock History for presentation since we don't have the history endpoint yet
             Text("Historial Reciente", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
             Spacer(modifier = Modifier.height(16.dp))
 
-            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column {
-                        Text("Partido en la cancha central", fontWeight = FontWeight.Bold)
-                        Text("Hace 2 días", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            val history = karma?.history ?: emptyList()
+
+            if (history.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No tienes movimientos de karma aún",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
+                }
+            } else {
+                history.forEach { item ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(item.reason, fontWeight = FontWeight.Bold)
+                                Text(item.createdAt.substringBefore("T"), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                            }
+                            val amountColor = if (item.amount > 0) KarmaExcellent else MaterialTheme.colorScheme.error
+                            val sign = if (item.amount > 0) "+" else ""
+                            Text("$sign${item.amount}", color = amountColor, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        }
                     }
-                    Text("+10", color = KarmaExcellent, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 }
             }
         }

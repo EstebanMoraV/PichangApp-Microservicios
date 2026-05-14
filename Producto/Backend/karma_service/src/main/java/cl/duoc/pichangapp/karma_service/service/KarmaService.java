@@ -1,6 +1,7 @@
 package cl.duoc.pichangapp.karma_service.service;
 
 import cl.duoc.pichangapp.karma_service.dto.CheckInEventDTO;
+import cl.duoc.pichangapp.karma_service.dto.KarmaHistoryDTO;
 import cl.duoc.pichangapp.karma_service.dto.KarmaResponseDTO;
 import cl.duoc.pichangapp.karma_service.dto.KarmaUpdateRequestDTO;
 import cl.duoc.pichangapp.karma_service.exception.UserNotFoundException;
@@ -10,6 +11,10 @@ import cl.duoc.pichangapp.karma_service.repository.KarmaHistoryRepository;
 import cl.duoc.pichangapp.karma_service.repository.KarmaScoreRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -141,7 +146,14 @@ public class KarmaService {
 
     private KarmaResponseDTO buildResponseDTO(KarmaScore score) {
         String category = determineCategory(score.getKarmaScore());
-        return new KarmaResponseDTO(score.getUserId(), score.getKarmaScore(), category);
+        List<KarmaHistoryDTO> historyDto = new ArrayList<>();
+        if (score.getHistory() != null) {
+            historyDto = score.getHistory().stream()
+                    .map(h -> new KarmaHistoryDTO(h.getAmount(), h.getReason(), h.getCreatedAt()))
+                    .sorted((h1, h2) -> h2.createdAt().compareTo(h1.createdAt()))
+                    .collect(Collectors.toList());
+        }
+        return new KarmaResponseDTO(score.getUserId(), score.getKarmaScore(), category, historyDto);
     }
 
     private String determineCategory(int score) {
