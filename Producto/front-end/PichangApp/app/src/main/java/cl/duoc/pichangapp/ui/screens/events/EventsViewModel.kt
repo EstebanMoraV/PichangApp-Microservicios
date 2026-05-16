@@ -199,9 +199,9 @@ class EventsViewModel @Inject constructor(
         if (errorBody.isNullOrBlank()) return fallback
         return try {
             val json = JSONObject(errorBody)
-            json.optString("message", null)
-                ?: json.optString("error", null)
-                ?: json.optString("detail", null)
+            json.optString("message").takeIf { it.isNotEmpty() }
+                ?: json.optString("error").takeIf { it.isNotEmpty() }
+                ?: json.optString("detail").takeIf { it.isNotEmpty() }
                 ?: fallback
         } catch (e: Exception) {
             // Si no es JSON, devolver el texto plano pero evitar mensajes técnicos

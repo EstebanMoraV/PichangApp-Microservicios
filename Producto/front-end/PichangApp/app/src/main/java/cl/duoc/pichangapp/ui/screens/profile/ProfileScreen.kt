@@ -102,9 +102,9 @@ fun ProfileScreen(
             ) {
                 Column {
                     ProfileRow(icon = Icons.Filled.Badge, label = "ID de Usuario", value = user?.id?.toString() ?: "N/A")
-                    Divider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp)
                     ProfileRow(icon = Icons.Filled.Email, label = "Correo", value = user?.correo ?: "N/A")
-                    Divider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp)
                     ProfileRow(icon = Icons.Filled.Person, label = "Nombre", value = "${user?.nombre} ${user?.apellido}")
                 }
             }

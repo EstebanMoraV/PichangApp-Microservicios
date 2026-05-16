@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Value;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -29,6 +28,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("null")
 public class KarmaService {
 
     private final KarmaScoreRepository karmaScoreRepository;
@@ -76,7 +76,10 @@ public class KarmaService {
 
     private void validateUserExistsInUsersService(String userId) {
         try {
-            int id = Integer.parseInt(userId);
+            // Validar que el userId sea un número entero válido
+            if (!userId.matches("\\d+")) {
+                throw new UserNotFoundException("El ID de usuario (" + userId + ") no es válido para el sistema.");
+            }
 
             ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
             if (attrs != null) {
@@ -151,7 +154,7 @@ public class KarmaService {
             historyDto = score.getHistory().stream()
                     .map(h -> new KarmaHistoryDTO(h.getAmount(), h.getReason(), h.getCreatedAt()))
                     .sorted((h1, h2) -> h2.createdAt().compareTo(h1.createdAt()))
-                    .collect(Collectors.toList());
+                    .toList();
         }
         return new KarmaResponseDTO(score.getUserId(), score.getKarmaScore(), category, historyDto);
     }

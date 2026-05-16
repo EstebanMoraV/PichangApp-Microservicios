@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("null")
 class EventServiceTest {
 
     @Mock
@@ -110,7 +111,7 @@ class EventServiceTest {
         oldEvent.setId(1);
         oldEvent.setStatus("ACTIVE");
         oldEvent.setEventDate(LocalDateTime.now().minusHours(5));
-        
+
         EventRegistration reg = new EventRegistration();
         reg.setUserId(20);
         reg.setEventId(1);
