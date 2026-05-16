@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,6 +25,9 @@ fun AttendanceScreen(
 ) {
     val registrations by viewModel.registrations.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(eventId) {
         viewModel.loadRegistrations(eventId)
@@ -32,7 +36,8 @@ fun AttendanceScreen(
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Asistencia") })
-        }
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { paddingValues ->
         if (isLoading && registrations.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -47,43 +52,84 @@ fun AttendanceScreen(
             ) {
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     items(registrations) { reg ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("Usuario ID: ${reg.userId}", fontWeight = FontWeight.Bold)
-                                    Text("Estado: ${reg.status}")
-                                }
-                                IconButton(
-                                    onClick = { viewModel.markAttendance(eventId, reg.userId, true) },
-                                    colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.primary)
-                                ) {
-                                    Icon(Icons.Filled.Check, contentDescription = "Asistió")
-                                }
-                                IconButton(
-                                    onClick = { viewModel.markAttendance(eventId, reg.userId, false) },
-                                    colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                                ) {
-                                    Icon(Icons.Filled.Close, contentDescription = "No Asistió")
-                                }
-                            }
-                        }
+                        RegistrationRow(
+                            reg = reg,
+                            eventId = eventId,
+                            viewModel = viewModel,
+                            snackbarHostState = snackbarHostState
+                        )
                     }
                 }
                 
                 Button(
                     onClick = { 
-                        viewModel.finishEvent(eventId)
-                        navController.popBackStack("events", inclusive = false)
+                        scope.launch {
+                            val result = viewModel.finishEvent(eventId)
+                            if (result.isSuccess) {
+                                snackbarHostState.showSnackbar("Evento finalizado correctamente")
+                                navController.popBackStack("events", inclusive = false)
+                            }
+                        }
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Finalizar Evento")
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun RegistrationRow(
+    reg: cl.duoc.pichangapp.data.model.EventRegistrationDto,
+    eventId: Int,
+    viewModel: EventsViewModel,
+    snackbarHostState: SnackbarHostState
+) {
+    var userName by remember { mutableStateOf("Usuario #${reg.userId}") }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(reg.userId) {
+        userName = viewModel.getUserName(reg.userId)
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(userName, fontWeight = FontWeight.Bold)
+                Text("Estado: ${reg.status}")
+            }
+            IconButton(
+                onClick = { 
+                    scope.launch {
+                        val result = viewModel.markAttendance(eventId, reg.userId, true)
+                        if (result.isSuccess) {
+                            snackbarHostState.showSnackbar("✓ $userName validado como asistente")
+                        }
+                    }
+                },
+                colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Icon(Icons.Filled.Check, contentDescription = "Asistió")
+            }
+            IconButton(
+                onClick = { 
+                    scope.launch {
+                        val result = viewModel.markAttendance(eventId, reg.userId, false)
+                        if (result.isSuccess) {
+                            snackbarHostState.showSnackbar("✗ $userName marcado como ausente")
+                        }
+                    }
+                },
+                colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error)
+            ) {
+                Icon(Icons.Filled.Close, contentDescription = "No Asistió")
             }
         }
     }

@@ -19,6 +19,10 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,9 +38,22 @@ fun CreateEventScreen(
     var maxPlayers by remember { mutableStateOf("10") }
     var expandedPlayers by remember { mutableStateOf(false) }
 
-    // Date/Time simple input for now (can be enhanced with actual Material3 pickers)
-    var date by remember { mutableStateOf("") }
-    var time by remember { mutableStateOf("") }
+    var selectedLocalDateTime by remember { mutableStateOf<LocalDateTime?>(null) }
+    val formatter = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM, HH:mm", Locale("es", "ES"))
+    val displayDateTime = selectedLocalDateTime?.format(formatter)?.replaceFirstChar { it.uppercase() } ?: "Seleccionar Fecha y Hora"
+
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = System.currentTimeMillis(),
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                return utcTimeMillis >= System.currentTimeMillis() - 86400000 // allow today
+            }
+        }
+    )
+    val timePickerState = rememberTimePickerState(is24Hour = true)
     
     var selectedLocation by remember { mutableStateOf<LatLng?>(null) }
     var locationName by remember { mutableStateOf("Ubicación seleccionada en el mapa") }
@@ -63,6 +80,50 @@ fun CreateEventScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (showDatePicker) {
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showDatePicker = false
+                            showTimePicker = true
+                        }) { Text("Siguiente") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDatePicker = false }) { Text("Cancelar") }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
+                }
+            }
+
+            if (showTimePicker) {
+                AlertDialog(
+                    onDismissRequest = { showTimePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            val dateMillis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
+                            val date = java.time.Instant.ofEpochMilli(dateMillis).atZone(ZoneId.of("UTC")).toLocalDate()
+                            val time = LocalTime.of(timePickerState.hour, timePickerState.minute)
+                            val dateTime = LocalDateTime.of(date, time)
+                            
+                            val minAllowed = LocalDateTime.now().plusHours(2)
+                            if (dateTime.isBefore(minAllowed)) {
+                                scope.launch { snackbarHostState.showSnackbar("La hora debe ser al menos 2 horas en el futuro") }
+                            } else {
+                                selectedLocalDateTime = dateTime
+                                showTimePicker = false
+                            }
+                        }) { Text("Confirmar") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showTimePicker = false }) { Text("Cancelar") }
+                    },
+                    text = {
+                        TimePicker(state = timePickerState)
+                    }
+                )
+            }
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -98,19 +159,11 @@ fun CreateEventScreen(
                 }
             }
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                OutlinedTextField(
-                    value = date,
-                    onValueChange = { date = it },
-                    label = { Text("Fecha (YYYY-MM-DD)") },
-                    modifier = Modifier.weight(1f)
-                )
-                OutlinedTextField(
-                    value = time,
-                    onValueChange = { time = it },
-                    label = { Text("Hora (HH:MM)") },
-                    modifier = Modifier.weight(1f)
-                )
+            OutlinedButton(
+                onClick = { showDatePicker = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(displayDateTime)
             }
 
             ExposedDropdownMenuBox(
@@ -170,24 +223,32 @@ fun CreateEventScreen(
 
             Button(
                 onClick = {
-                    if (name.isBlank() || date.isBlank() || time.isBlank() || selectedLocation == null) {
+                    if (name.isBlank() || selectedLocalDateTime == null || selectedLocation == null) {
                         scope.launch { snackbarHostState.showSnackbar("Por favor, completa todos los campos y selecciona ubicación") }
                         return@Button
                     }
-                    val eventDateStr = "${date}T${time}:00"
+                    val eventDateStr = selectedLocalDateTime!!.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
                     
-                    viewModel.createEvent(
-                        CreateEventRequest(
-                            name = name,
-                            sport = sport,
-                            eventDate = eventDateStr,
-                            latitude = selectedLocation!!.latitude,
-                            longitude = selectedLocation!!.longitude,
-                            locationName = locationName,
-                            maxPlayers = maxPlayers.toIntOrNull() ?: 10
+                    scope.launch {
+                        val result = viewModel.createEvent(
+                            CreateEventRequest(
+                                name = name,
+                                sport = sport,
+                                eventDate = eventDateStr,
+                                latitude = selectedLocation!!.latitude,
+                                longitude = selectedLocation!!.longitude,
+                                locationName = locationName,
+                                maxPlayers = maxPlayers.toIntOrNull() ?: 10
+                            )
                         )
-                    )
-                    navController.popBackStack()
+                        if (result.isSuccess) {
+                            snackbarHostState.showSnackbar("¡Partido creado exitosamente!")
+                            navController.popBackStack()
+                        } else {
+                            val msg = result.exceptionOrNull()?.message ?: "Error al crear partido"
+                            snackbarHostState.showSnackbar(msg)
+                        }
+                    }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {

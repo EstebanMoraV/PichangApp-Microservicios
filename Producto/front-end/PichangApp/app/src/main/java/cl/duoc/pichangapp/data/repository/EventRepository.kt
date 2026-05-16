@@ -28,4 +28,8 @@ class EventRepository @Inject constructor(
     suspend fun getMyEvents(): List<EventDto> = eventApi.getMyEvents()
     
     suspend fun getOrganizingEvents(): List<EventDto> = eventApi.getOrganizingEvents()
+    
+    suspend fun leaveEvent(id: Int): retrofit2.Response<Unit> = eventApi.leaveEvent(id)
+
+    suspend fun getUserById(id: Int): UserDto = eventApi.getUserById(id)
 }

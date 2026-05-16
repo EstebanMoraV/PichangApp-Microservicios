@@ -49,6 +49,18 @@ public class EventController {
         return ResponseEntity.ok().build();
     }
 
+    @DeleteMapping("/{id}/leave")
+    public ResponseEntity<?> leaveEvent(@PathVariable Integer id) {
+        Integer userId = getLoggedUserId();
+        try {
+            eventService.leaveEvent(id, userId);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+
     @PostMapping("/{id}/checkin")
     public ResponseEntity<Void> checkIn(
             @PathVariable Integer id,

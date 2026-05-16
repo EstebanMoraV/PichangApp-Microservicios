@@ -80,36 +80,48 @@ class EventsViewModel @Inject constructor(
         }
     }
 
-    fun joinEvent(eventId: Int) {
-        viewModelScope.launch {
-            try {
-                eventRepository.joinEvent(eventId)
-                // Reload list or my events
+    suspend fun joinEvent(eventId: Int): Result<Unit> {
+        return try {
+            eventRepository.joinEvent(eventId)
+            loadMyEvents()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun leaveEvent(eventId: Int): Result<Unit> {
+        return try {
+            val response = eventRepository.leaveEvent(eventId)
+            if (response.isSuccessful) {
+                loadEventDetail(eventId)
                 loadMyEvents()
-            } catch (e: Exception) {
-                _error.value = e.message
+                Result.success(Unit)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Error desconocido"
+                Result.failure(Exception(errorMsg))
             }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
     
-    fun createEvent(request: CreateEventRequest) {
-        viewModelScope.launch {
-            try {
-                eventRepository.createEvent(request)
-            } catch (e: Exception) {
-                _error.value = e.message
-            }
+    suspend fun createEvent(request: CreateEventRequest): Result<Unit> {
+        return try {
+            eventRepository.createEvent(request)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
     
-    fun finishEvent(eventId: Int) {
-        viewModelScope.launch {
-            try {
-                eventRepository.finishEvent(eventId)
-                loadOrganizingEvents()
-            } catch (e: Exception) {
-                _error.value = e.message
-            }
+    suspend fun finishEvent(eventId: Int): Result<Unit> {
+        return try {
+            eventRepository.finishEvent(eventId)
+            loadOrganizingEvents()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
@@ -139,24 +151,31 @@ class EventsViewModel @Inject constructor(
         }
     }
 
-    fun checkIn(eventId: Int, lat: Double, lng: Double) {
-        viewModelScope.launch {
-            try {
-                eventRepository.checkIn(eventId, lat, lng)
-            } catch (e: Exception) {
-                _error.value = e.message
-            }
+    suspend fun checkIn(eventId: Int, lat: Double, lng: Double): Result<Unit> {
+        return try {
+            eventRepository.checkIn(eventId, lat, lng)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
-    fun markAttendance(eventId: Int, userId: Int, attended: Boolean) {
-        viewModelScope.launch {
-            try {
-                eventRepository.markAttendance(eventId, userId, attended)
-                loadRegistrations(eventId) // Refresh list
-            } catch (e: Exception) {
-                _error.value = e.message
-            }
+    suspend fun markAttendance(eventId: Int, userId: Int, attended: Boolean): Result<Unit> {
+        return try {
+            eventRepository.markAttendance(eventId, userId, attended)
+            loadRegistrations(eventId) // Refresh list
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getUserName(userId: Int): String {
+        return try {
+            val user = eventRepository.getUserById(userId)
+            "${user.nombre} ${user.apellido}"
+        } catch (e: Exception) {
+            "Usuario #$userId"
         }
     }
 }

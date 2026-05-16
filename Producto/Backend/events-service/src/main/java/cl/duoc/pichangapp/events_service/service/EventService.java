@@ -96,6 +96,24 @@ public class EventService {
     }
 
     @Transactional
+    public void leaveEvent(Integer eventId, Integer userId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EventNotFoundException("Event not found"));
+        
+        EventRegistration registration = eventRegistrationRepository.findByEventIdAndUserId(eventId, userId)
+                .orElseThrow(() -> new IllegalStateException("User is not registered for this event"));
+
+        if (!event.getEventDate().minusHours(2).isAfter(LocalDateTime.now())) {
+            throw new IllegalArgumentException("No puedes cancelar con menos de 2 horas de anticipación");
+        }
+
+        eventRegistrationRepository.delete(registration);
+        event.setCurrentPlayers(event.getCurrentPlayers() - 1);
+        eventRepository.save(event);
+    }
+
+
+    @Transactional
     public void checkIn(Integer eventId, Integer userId, double userLat, double userLng) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EventNotFoundException("Event not found"));

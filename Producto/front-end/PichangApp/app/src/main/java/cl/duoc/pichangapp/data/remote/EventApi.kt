@@ -6,6 +6,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.DELETE
 
 interface EventApi {
     @GET("api/v1/events")
@@ -46,4 +47,10 @@ interface EventApi {
 
     @GET("api/v1/events/organizing")
     suspend fun getOrganizingEvents(): List<EventDto>
+
+    @DELETE("api/v1/events/{id}/leave")
+    suspend fun leaveEvent(@Path("id") id: Int): retrofit2.Response<Unit>
+
+    @GET("api/v1/users/{id}")
+    suspend fun getUserById(@Path("id") id: Int): UserDto
 }
