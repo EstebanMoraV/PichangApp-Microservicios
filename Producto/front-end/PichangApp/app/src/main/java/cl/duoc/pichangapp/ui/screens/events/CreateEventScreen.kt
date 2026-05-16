@@ -1,12 +1,22 @@
 package cl.duoc.pichangapp.ui.screens.events
 
 import android.location.Geocoder
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.SportsScore
+import androidx.compose.material.icons.filled.Title
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -15,6 +25,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import cl.duoc.pichangapp.data.model.CreateEventRequest
+import cl.duoc.pichangapp.ui.components.PichangButton
+import cl.duoc.pichangapp.ui.components.PichangSnackbar
+import cl.duoc.pichangapp.ui.components.PichangTextField
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
@@ -32,227 +45,287 @@ fun CreateEventScreen(
     viewModel: EventsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    var step by remember { mutableIntStateOf(1) }
+
     var name by remember { mutableStateOf("") }
+    var nameError by remember { mutableStateOf(false) }
+    
     var sport by remember { mutableStateOf("Fútbol") }
     var expandedSport by remember { mutableStateOf(false) }
+    
     var maxPlayers by remember { mutableStateOf("10") }
     var expandedPlayers by remember { mutableStateOf(false) }
 
     var selectedLocalDateTime by remember { mutableStateOf<LocalDateTime?>(null) }
-    val formatter = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM, HH:mm", Locale("es", "ES"))
-    val displayDateTime = selectedLocalDateTime?.format(formatter)?.replaceFirstChar { it.uppercase() } ?: "Seleccionar Fecha y Hora"
+    var dateError by remember { mutableStateOf(false) }
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
-    
+
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = System.currentTimeMillis(),
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                return utcTimeMillis >= System.currentTimeMillis() - 86400000 // allow today
+                return utcTimeMillis >= System.currentTimeMillis() - 86400000
             }
         }
     )
     val timePickerState = rememberTimePickerState(is24Hour = true)
-    
+
     var selectedLocation by remember { mutableStateOf<LatLng?>(null) }
-    var locationName by remember { mutableStateOf("Ubicación seleccionada en el mapa") }
-    
+    var locationName by remember { mutableStateOf("Ubicación en el mapa") }
+    var locationError by remember { mutableStateOf(false) }
+
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(-33.4489, -70.6693), 12f)
     }
-    
-    val sports = listOf("Fútbol", "Básquetbol", "Tenis", "Vóleibol", "Otro")
-    val playersOptions = (1..50).map { it.toString() }
-
-    val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Crear Partido") }) },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        topBar = { TopAppBar(title = { Text("Crear Partido - Paso $step/3") }) },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) { PichangSnackbar(it) } }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (showDatePicker) {
-                DatePickerDialog(
-                    onDismissRequest = { showDatePicker = false },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            showDatePicker = false
-                            showTimePicker = true
-                        }) { Text("Siguiente") }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showDatePicker = false }) { Text("Cancelar") }
-                    }
-                ) {
-                    DatePicker(state = datePickerState)
-                }
-            }
-
-            if (showTimePicker) {
-                AlertDialog(
-                    onDismissRequest = { showTimePicker = false },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            val dateMillis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
-                            val date = java.time.Instant.ofEpochMilli(dateMillis).atZone(ZoneId.of("UTC")).toLocalDate()
-                            val time = LocalTime.of(timePickerState.hour, timePickerState.minute)
-                            val dateTime = LocalDateTime.of(date, time)
-                            
-                            val minAllowed = LocalDateTime.now().plusHours(2)
-                            if (dateTime.isBefore(minAllowed)) {
-                                scope.launch { snackbarHostState.showSnackbar("La hora debe ser al menos 2 horas en el futuro") }
-                            } else {
-                                selectedLocalDateTime = dateTime
-                                showTimePicker = false
-                            }
-                        }) { Text("Confirmar") }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showTimePicker = false }) { Text("Cancelar") }
-                    },
-                    text = {
-                        TimePicker(state = timePickerState)
-                    }
-                )
-            }
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Nombre del partido") },
-                modifier = Modifier.fillMaxWidth()
+            LinearProgressIndicator(
+                progress = step / 3f,
+                modifier = Modifier.fillMaxWidth().height(8.dp),
+                color = MaterialTheme.colorScheme.primary
             )
+            Spacer(modifier = Modifier.height(24.dp))
 
-            ExposedDropdownMenuBox(
-                expanded = expandedSport,
-                onExpandedChange = { expandedSport = it }
-            ) {
-                OutlinedTextField(
-                    value = sport,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Deporte") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedSport) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor()
-                )
-                ExposedDropdownMenu(
-                    expanded = expandedSport,
-                    onDismissRequest = { expandedSport = false }
-                ) {
-                    sports.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option) },
-                            onClick = {
-                                sport = option
-                                expandedSport = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            OutlinedButton(
-                onClick = { showDatePicker = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(displayDateTime)
-            }
-
-            ExposedDropdownMenuBox(
-                expanded = expandedPlayers,
-                onExpandedChange = { expandedPlayers = it }
-            ) {
-                OutlinedTextField(
-                    value = maxPlayers,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Máximo de jugadores") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPlayers) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor()
-                )
-                ExposedDropdownMenu(
-                    expanded = expandedPlayers,
-                    onDismissRequest = { expandedPlayers = false }
-                ) {
-                    playersOptions.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option) },
-                            onClick = {
-                                maxPlayers = option
-                                expandedPlayers = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            Text("Ubicación", fontWeight = FontWeight.Bold)
-            Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
-                GoogleMap(
-                    modifier = Modifier.fillMaxSize(),
-                    cameraPositionState = cameraPositionState,
-                    onMapClick = { latLng ->
-                        selectedLocation = latLng
-                        scope.launch {
-                            try {
-                                val geocoder = Geocoder(context, Locale.getDefault())
-                                val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
-                                if (!addresses.isNullOrEmpty()) {
-                                    locationName = addresses[0].getAddressLine(0) ?: "Ubicación en el mapa"
-                                }
-                            } catch (e: Exception) {
-                                // Ignore
-                            }
-                        }
-                    }
-                ) {
-                    selectedLocation?.let {
-                        Marker(state = MarkerState(position = it), title = "Ubicación seleccionada")
-                    }
-                }
-            }
-            Text("Dirección aproximada: $locationName", style = MaterialTheme.typography.bodySmall)
-
-            Button(
-                onClick = {
-                    if (name.isBlank() || selectedLocalDateTime == null || selectedLocation == null) {
-                        scope.launch { snackbarHostState.showSnackbar("Por favor, completa todos los campos y selecciona ubicación") }
-                        return@Button
-                    }
-                    val eventDateStr = selectedLocalDateTime!!.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-                    
-                    scope.launch {
-                        val result = viewModel.createEvent(
-                            CreateEventRequest(
-                                name = name,
-                                sport = sport,
-                                eventDate = eventDateStr,
-                                latitude = selectedLocation!!.latitude,
-                                longitude = selectedLocation!!.longitude,
-                                locationName = locationName,
-                                maxPlayers = maxPlayers.toIntOrNull() ?: 10
-                            )
-                        )
-                        if (result.isSuccess) {
-                            snackbarHostState.showSnackbar("¡Partido creado exitosamente!")
-                            navController.popBackStack()
-                        } else {
-                            val msg = result.exceptionOrNull()?.message ?: "Error al crear partido"
-                            snackbarHostState.showSnackbar(msg)
-                        }
+            AnimatedContent(
+                targetState = step,
+                transitionSpec = {
+                    if (targetState > initialState) {
+                        slideInHorizontally(tween(300)) { width -> width } + fadeIn() togetherWith
+                                slideOutHorizontally(tween(300)) { width -> -width } + fadeOut()
+                    } else {
+                        slideInHorizontally(tween(300)) { width -> -width } + fadeIn() togetherWith
+                                slideOutHorizontally(tween(300)) { width -> width } + fadeOut()
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Crear Partido")
+                modifier = Modifier.weight(1f).fillMaxWidth()
+            ) { targetStep ->
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    when (targetStep) {
+                        1 -> {
+                            Text("Detalles Generales", style = MaterialTheme.typography.titleLarge)
+                            PichangTextField(
+                                value = name,
+                                onValueChange = { name = it; nameError = false },
+                                label = "Nombre del partido",
+                                isError = nameError,
+                                errorMessage = "Debe tener al menos 3 caracteres",
+                                leadingIcon = { Icon(Icons.Filled.Title, contentDescription = null) }
+                            )
+
+                            ExposedDropdownMenuBox(
+                                expanded = expandedSport,
+                                onExpandedChange = { expandedSport = it }
+                            ) {
+                                PichangTextField(
+                                    value = sport,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = "Deporte",
+                                    leadingIcon = { Icon(Icons.Filled.SportsScore, contentDescription = null) },
+                                    modifier = Modifier.menuAnchor()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expandedSport,
+                                    onDismissRequest = { expandedSport = false }
+                                ) {
+                                    listOf("Fútbol", "Básquetbol", "Tenis", "Vóleibol", "Otro").forEach { option ->
+                                        DropdownMenuItem(
+                                            text = { Text(option) },
+                                            onClick = { sport = option; expandedSport = false }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        2 -> {
+                            Text("Fecha y Hora", style = MaterialTheme.typography.titleLarge)
+                            
+                            val formatter = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM, HH:mm", Locale("es", "ES"))
+                            val displayDateTime = selectedLocalDateTime?.format(formatter)?.replaceFirstChar { it.uppercase() } ?: "Seleccionar Fecha y Hora"
+                            
+                            OutlinedButton(
+                                onClick = { showDatePicker = true },
+                                modifier = Modifier.fillMaxWidth().height(56.dp),
+                                shape = MaterialTheme.shapes.medium,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp, 
+                                    if (dateError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
+                                )
+                            ) {
+                                Text(displayDateTime, color = if (dateError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                            }
+                            if (dateError) {
+                                Text("Debes seleccionar una fecha y hora futura válida", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                            }
+
+                            if (showDatePicker) {
+                                DatePickerDialog(
+                                    onDismissRequest = { showDatePicker = false },
+                                    confirmButton = {
+                                        TextButton(onClick = { showDatePicker = false; showTimePicker = true }) { Text("Siguiente") }
+                                    }
+                                ) { DatePicker(state = datePickerState) }
+                            }
+
+                            if (showTimePicker) {
+                                AlertDialog(
+                                    onDismissRequest = { showTimePicker = false },
+                                    confirmButton = {
+                                        TextButton(onClick = {
+                                            val dateMillis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
+                                            val date = java.time.Instant.ofEpochMilli(dateMillis).atZone(ZoneId.of("UTC")).toLocalDate()
+                                            val time = LocalTime.of(timePickerState.hour, timePickerState.minute)
+                                            val dateTime = LocalDateTime.of(date, time)
+                                            
+                                            val minAllowed = LocalDateTime.now().plusHours(2)
+                                            if (dateTime.isBefore(minAllowed)) {
+                                                scope.launch { snackbarHostState.showSnackbar("La hora debe ser al menos 2 horas en el futuro") }
+                                            } else {
+                                                selectedLocalDateTime = dateTime
+                                                dateError = false
+                                                showTimePicker = false
+                                            }
+                                        }) { Text("Confirmar") }
+                                    },
+                                    text = { TimePicker(state = timePickerState) }
+                                )
+                            }
+                        }
+                        3 -> {
+                            Text("Ubicación y Jugadores", style = MaterialTheme.typography.titleLarge)
+                            
+                            ExposedDropdownMenuBox(
+                                expanded = expandedPlayers,
+                                onExpandedChange = { expandedPlayers = it }
+                            ) {
+                                PichangTextField(
+                                    value = maxPlayers,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = "Máximo de jugadores",
+                                    modifier = Modifier.menuAnchor()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expandedPlayers,
+                                    onDismissRequest = { expandedPlayers = false }
+                                ) {
+                                    (1..50).map { it.toString() }.forEach { option ->
+                                        DropdownMenuItem(
+                                            text = { Text(option) },
+                                            onClick = { maxPlayers = option; expandedPlayers = false }
+                                        )
+                                    }
+                                }
+                            }
+
+                            Text("Selecciona en el mapa", fontWeight = FontWeight.Bold, color = if (locationError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                            Box(modifier = Modifier.fillMaxWidth().height(250.dp).background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)) {
+                                GoogleMap(
+                                    modifier = Modifier.fillMaxSize(),
+                                    cameraPositionState = cameraPositionState,
+                                    onMapClick = { latLng ->
+                                        selectedLocation = latLng
+                                        locationError = false
+                                        scope.launch {
+                                            try {
+                                                val geocoder = Geocoder(context, Locale.getDefault())
+                                                val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
+                                                if (!addresses.isNullOrEmpty()) {
+                                                    locationName = addresses[0].getAddressLine(0) ?: "Ubicación en el mapa"
+                                                }
+                                            } catch (e: Exception) { }
+                                        }
+                                    }
+                                ) {
+                                    selectedLocation?.let { Marker(state = MarkerState(position = it)) }
+                                }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Filled.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(locationName, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                if (step > 1) {
+                    OutlinedButton(onClick = { step-- }) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Atrás")
+                    }
+                } else {
+                    Spacer(Modifier.weight(1f))
+                }
+                
+                if (step < 3) {
+                    Button(onClick = {
+                        if (step == 1 && name.length < 3) {
+                            nameError = true
+                        } else if (step == 2 && selectedLocalDateTime == null) {
+                            dateError = true
+                        } else {
+                            step++
+                        }
+                    }) {
+                        Text("Siguiente")
+                        Spacer(Modifier.width(8.dp))
+                        Icon(Icons.Filled.ArrowForward, contentDescription = null)
+                    }
+                } else {
+                    Button(onClick = {
+                        if (selectedLocation == null) {
+                            locationError = true
+                            scope.launch { snackbarHostState.showSnackbar("Debes seleccionar una ubicación") }
+                            return@Button
+                        }
+                        
+                        val eventDateStr = selectedLocalDateTime!!.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                        scope.launch {
+                            val result = viewModel.createEvent(
+                                CreateEventRequest(
+                                    name = name,
+                                    sport = sport,
+                                    eventDate = eventDateStr,
+                                    latitude = selectedLocation!!.latitude,
+                                    longitude = selectedLocation!!.longitude,
+                                    locationName = locationName,
+                                    maxPlayers = maxPlayers.toIntOrNull() ?: 10
+                                )
+                            )
+                            if (result.isSuccess) {
+                                snackbarHostState.showSnackbar("¡Partido creado exitosamente!")
+                                navController.popBackStack()
+                            } else {
+                                snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Error al crear")
+                            }
+                        }
+                    }) {
+                        Text("Crear Partido")
+                    }
+                }
             }
         }
     }

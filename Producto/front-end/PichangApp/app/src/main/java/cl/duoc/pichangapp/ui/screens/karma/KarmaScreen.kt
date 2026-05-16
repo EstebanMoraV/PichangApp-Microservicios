@@ -1,36 +1,22 @@
 package cl.duoc.pichangapp.ui.screens.karma
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,12 +25,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import cl.duoc.pichangapp.ui.components.PichangCard
+import cl.duoc.pichangapp.ui.components.LoadingScreen
+import cl.duoc.pichangapp.ui.components.EmptyState
 import cl.duoc.pichangapp.ui.theme.KarmaExcellent
 import cl.duoc.pichangapp.ui.theme.KarmaGood
 import cl.duoc.pichangapp.ui.theme.KarmaLow
 import cl.duoc.pichangapp.ui.theme.KarmaRegular
-
-import androidx.navigation.NavController
+import kotlin.math.roundToInt
 
 @Composable
 fun KarmaScreen(
@@ -56,132 +45,147 @@ fun KarmaScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .background(MaterialTheme.colorScheme.background)
     ) {
         if (state.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
+            LoadingScreen()
         } else if (state.error != null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Error: ${state.error}", color = MaterialTheme.colorScheme.error)
-            }
+            EmptyState(emoji = "⚠️", title = "Error", message = state.error!!)
         } else {
             val karma = state.karma
 
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            Text("Tu Nivel de Karma", style = MaterialTheme.typography.titleLarge)
-            Spacer(modifier = Modifier.height(16.dp))
-
-            val badgeColor = when (karma?.categoria?.lowercase()) {
-                "excelente", "oro" -> KarmaExcellent
-                "bueno", "plata" -> KarmaGood
-                "regular", "bronce" -> KarmaRegular
-                else -> KarmaLow
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(150.dp)
-                    .clip(CircleShape)
-                    .background(badgeColor.copy(alpha = 0.2f)),
-                contentAlignment = Alignment.Center
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Filled.Star, contentDescription = null, tint = badgeColor, modifier = Modifier.size(48.dp))
-                    Text(
-                        text = "${karma?.puntaje ?: 0}",
-                        style = MaterialTheme.typography.displayMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = badgeColor
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Text(
+                    "Tu Nivel de Karma", 
+                    style = MaterialTheme.typography.headlineMedium, 
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
+                Spacer(modifier = Modifier.height(32.dp))
+
+                val badgeColor = when (karma?.categoria?.lowercase()) {
+                    "excelente", "oro" -> KarmaExcellent
+                    "bueno", "plata" -> KarmaGood
+                    "regular", "bronce" -> KarmaRegular
+                    else -> KarmaLow
+                }
+
+                val scoreTarget = karma?.puntaje ?: 0
+                val animatedScore = remember { Animatable(0f) }
+                LaunchedEffect(scoreTarget) {
+                    animatedScore.animateTo(
+                        targetValue = scoreTarget.toFloat(),
+                        animationSpec = tween(1500, easing = androidx.compose.animation.core.FastOutSlowInEasing)
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Box(
-                modifier = Modifier
-                    .background(badgeColor, RoundedCornerShape(16.dp))
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = "Categoría: ${karma?.categoria ?: "Sin categoría"}",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Progreso hacia el siguiente nivel (Visual only for now, since we only get the score)
-            val score = karma?.puntaje ?: 0
-            val maxScore = 1000f // Assume 1000 is max or next level
-            val progress = (score / maxScore).coerceIn(0f, 1f)
-            
-            var progressAnim by remember { mutableStateOf(0f) }
-            val animatedProgress by animateFloatAsState(
-                targetValue = progressAnim,
-                animationSpec = tween(1000), label = ""
-            )
-
-            LaunchedEffect(score) {
-                progressAnim = progress
-            }
-
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Progreso al siguiente nivel", style = MaterialTheme.typography.bodyMedium)
-                    Text("${(progress * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { animatedProgress },
-                    modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
-                    color = badgeColor,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-            
-            Text("Historial Reciente", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
-            Spacer(modifier = Modifier.height(16.dp))
-
-            val history = karma?.history ?: emptyList()
-
-            if (history.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxWidth().padding(32.dp),
+                    modifier = Modifier
+                        .size(180.dp)
+                        .background(badgeColor.copy(alpha = 0.1f), CircleShape)
+                        .padding(16.dp),
                     contentAlignment = Alignment.Center
                 ) {
+                    CircularProgressIndicator(
+                        progress = { animatedScore.value / 1000f }, // Assume 1000 is max
+                        modifier = Modifier.fillMaxSize(),
+                        color = badgeColor,
+                        strokeWidth = 8.dp,
+                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Filled.Star, contentDescription = null, tint = badgeColor, modifier = Modifier.size(48.dp))
+                        Text(
+                            text = "${animatedScore.value.roundToInt()}",
+                            style = MaterialTheme.typography.displayLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = badgeColor
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Box(
+                    modifier = Modifier
+                        .background(badgeColor, RoundedCornerShape(16.dp))
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                ) {
                     Text(
-                        text = "No tienes movimientos de karma aún",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
+                        text = karma?.categoria?.uppercase() ?: "SIN CATEGORÍA",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
                     )
                 }
-            } else {
-                history.forEach { item ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                Text(
+                    "Historial Reciente", 
+                    style = MaterialTheme.typography.titleLarge, 
+                    fontWeight = FontWeight.Bold, 
+                    modifier = Modifier.align(Alignment.Start)
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+
+                val history = karma?.history ?: emptyList()
+
+                if (history.isEmpty()) {
+                    EmptyState(emoji = "📈", title = "Sin movimientos", message = "No tienes movimientos de karma aún.")
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(item.reason, fontWeight = FontWeight.Bold)
-                                Text(item.createdAt.substringBefore("T"), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        itemsIndexed(history, key = { _, item -> item.createdAt }) { index, item ->
+                            AnimatedVisibility(
+                                visible = true,
+                                enter = fadeIn(tween(300, delayMillis = index * 50)) + slideInHorizontally(tween(300, delayMillis = index * 50))
+                            ) {
+                                PichangCard(modifier = Modifier.fillMaxWidth()) {
+                                    Row(
+                                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        val isPositive = item.amount > 0
+                                        val amountColor = if (isPositive) KarmaExcellent else MaterialTheme.colorScheme.error
+                                        val icon = if (isPositive) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward
+                                        val sign = if (isPositive) "+" else ""
+
+                                        Box(
+                                            modifier = Modifier
+                                                .size(48.dp)
+                                                .background(amountColor.copy(alpha = 0.1f), CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(icon, contentDescription = null, tint = amountColor)
+                                        }
+
+                                        Spacer(modifier = Modifier.width(16.dp))
+
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(item.reason, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                                            Text(item.createdAt.substringBefore("T"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+
+                                        Text(
+                                            text = "$sign${item.amount}", 
+                                            color = amountColor, 
+                                            fontWeight = FontWeight.Bold, 
+                                            fontSize = 20.sp
+                                        )
+                                    }
+                                }
                             }
-                            val amountColor = if (item.amount > 0) KarmaExcellent else MaterialTheme.colorScheme.error
-                            val sign = if (item.amount > 0) "+" else ""
-                            Text("$sign${item.amount}", color = amountColor, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         }
                     }
                 }

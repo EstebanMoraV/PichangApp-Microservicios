@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("null")
 class EventServiceTest {
 
     @Mock
@@ -33,6 +34,9 @@ class EventServiceTest {
 
     @Mock
     private KarmaServiceClient karmaServiceClient;
+
+    @Mock
+    private NotificationServiceClient notificationServiceClient;
 
     @InjectMocks
     private EventService eventService;
@@ -84,24 +88,21 @@ class EventServiceTest {
     }
 
     @Test
-    void checkIn_TooFar_ThrowsException() {
+    void deleteEvent_Success() {
         EventRegistration reg = new EventRegistration();
         reg.setEventId(1);
         reg.setUserId(20);
         reg.setStatus("REGISTERED");
 
         when(eventRepository.findById(1)).thenReturn(Optional.of(event));
-        when(eventRegistrationRepository.findByEventIdAndUserId(1, 20)).thenReturn(Optional.of(reg));
+        when(eventRegistrationRepository.findByEventId(1)).thenReturn(List.of(reg));
 
-        // Coordinates far away (distance > 0.5km)
-        double userLat = -33.4569;
-        double userLng = -70.6000; // far longitude
+        eventService.deleteEvent(1, 10);
 
-        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> {
-            eventService.checkIn(1, 20, userLat, userLng);
-        });
-
-        assertEquals("User is too far from the event location (max 500m)", ex.getMessage());
+        assertEquals("CANCELLED", event.getStatus());
+        verify(karmaServiceClient, times(1)).registerCheckIn(20, 1);
+        verify(notificationServiceClient, times(1)).sendNotification(any());
+        verify(eventRepository, times(1)).save(event);
     }
 
     @Test
@@ -110,7 +111,7 @@ class EventServiceTest {
         oldEvent.setId(1);
         oldEvent.setStatus("ACTIVE");
         oldEvent.setEventDate(LocalDateTime.now().minusHours(5));
-        
+
         EventRegistration reg = new EventRegistration();
         reg.setUserId(20);
         reg.setEventId(1);

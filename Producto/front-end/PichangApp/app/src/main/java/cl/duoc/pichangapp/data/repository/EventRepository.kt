@@ -2,6 +2,7 @@ package cl.duoc.pichangapp.data.repository
 
 import cl.duoc.pichangapp.data.model.*
 import cl.duoc.pichangapp.data.remote.EventApi
+import retrofit2.Response
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -15,15 +16,15 @@ class EventRepository @Inject constructor(
     
     suspend fun createEvent(request: CreateEventRequest): EventDto = eventApi.createEvent(request)
     
-    suspend fun joinEvent(id: Int) = eventApi.joinEvent(id)
+    suspend fun joinEvent(id: Int): Response<Unit> = eventApi.joinEvent(id)
     
-    suspend fun checkIn(id: Int, lat: Double, lng: Double) = eventApi.checkIn(id, EventCheckInRequest(lat, lng))
+    suspend fun deleteEvent(id: Int): Response<Unit> = eventApi.deleteEvent(id)
     
     suspend fun getRegistrations(id: Int): List<EventRegistrationDto> = eventApi.getRegistrations(id)
     
-    suspend fun markAttendance(id: Int, userId: Int, attended: Boolean) = eventApi.markAttendance(id, AttendanceRequest(userId, attended))
+    suspend fun markAttendance(id: Int, userId: Int, attended: Boolean): Response<Unit> = eventApi.markAttendance(id, AttendanceRequest(userId, attended))
     
-    suspend fun finishEvent(id: Int) = eventApi.finishEvent(id)
+    suspend fun finishEvent(id: Int): Response<Unit> = eventApi.finishEvent(id)
     
     suspend fun getMyEvents(): List<EventDto> = eventApi.getMyEvents()
     
