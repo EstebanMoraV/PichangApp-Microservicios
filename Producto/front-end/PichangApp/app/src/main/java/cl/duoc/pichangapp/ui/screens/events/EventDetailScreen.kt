@@ -1,16 +1,30 @@
 package cl.duoc.pichangapp.ui.screens.events
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.SportsScore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import cl.duoc.pichangapp.ui.components.PichangButton
+import cl.duoc.pichangapp.ui.components.PichangSnackbar
+import cl.duoc.pichangapp.ui.components.LoadingScreen
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
@@ -35,21 +49,27 @@ fun EventDetailScreen(
     val scope = rememberCoroutineScope()
     var showCancelDialog by remember { mutableStateOf(false) }
 
+    // Pulse Animation
+    val infiniteTransition = rememberInfiniteTransition()
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
     LaunchedEffect(eventId) {
         viewModel.loadEventDetail(eventId)
         viewModel.loadMyEvents()
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Detalle del Evento") })
-        },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) { PichangSnackbar(it) } }
     ) { paddingValues ->
         if (event == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
+            LoadingScreen()
         } else {
             val e = event!!
             val isOrganizer = e.organizerId == userId
@@ -59,7 +79,7 @@ fun EventDetailScreen(
                 AlertDialog(
                     onDismissRequest = { showCancelDialog = false },
                     title = { Text("Cancelar participación") },
-                    text = { Text("¿Estás seguro que deseas cancelar tu participación?") },
+                    text = { Text("¿Estás seguro que deseas cancelar tu participación? Si el partido comienza en menos de 2 horas no podrás hacerlo.") },
                     confirmButton = {
                         TextButton(onClick = {
                             showCancelDialog = false
@@ -68,8 +88,7 @@ fun EventDetailScreen(
                                 if (result.isSuccess) {
                                     snackbarHostState.showSnackbar("Participación cancelada")
                                 } else {
-                                    val msg = result.exceptionOrNull()?.message ?: "Error al cancelar"
-                                    snackbarHostState.showSnackbar(msg)
+                                    snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Error al cancelar")
                                 }
                             }
                         }) { Text("Confirmar", color = MaterialTheme.colorScheme.error) }
@@ -84,10 +103,10 @@ fun EventDetailScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .verticalScroll(rememberScrollState()),
             ) {
-                Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
+                // Header with Map
+                Box(modifier = Modifier.fillMaxWidth().height(250.dp)) {
                     val latLng = LatLng(e.latitude, e.longitude)
                     val cameraPositionState = rememberCameraPositionState {
                         position = CameraPosition.fromLatLngZoom(latLng, 14f)
@@ -99,98 +118,155 @@ fun EventDetailScreen(
                     ) {
                         Marker(state = MarkerState(position = latLng), title = e.name)
                     }
+
+                    // Gradient Overlay
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(Color.Transparent, MaterialTheme.colorScheme.background),
+                                    startY = 200f
+                                )
+                            )
+                    )
                 }
 
-                Text(e.name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                Text("${e.sport} • ${e.eventDate}", style = MaterialTheme.typography.titleMedium)
-                
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(e.locationName, style = MaterialTheme.typography.bodyLarge)
-                }
-                
-                if (e.distanceKm != null) {
-                    Text("A ${String.format("%.1f", e.distanceKm)} km de ti", style = MaterialTheme.typography.bodyMedium)
-                }
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text(e.name, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text("Jugadores: ${e.currentPlayers} / ${e.maxPlayers}")
-                LinearProgressIndicator(
-                    progress = if (e.maxPlayers > 0) e.currentPlayers.toFloat() / e.maxPlayers else 0f,
-                    modifier = Modifier.fillMaxWidth().height(8.dp)
-                )
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                if (isOrganizer) {
-                    Button(
-                        onClick = { navController.navigate("events/${e.id}/attendance") },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Ver inscritos")
-                    }
-                    OutlinedButton(
-                        onClick = { 
-                            scope.launch {
-                                val result = viewModel.finishEvent(e.id)
-                                if (result.isSuccess) {
-                                    snackbarHostState.showSnackbar("Evento finalizado correctamente")
-                                    navController.popBackStack()
-                                }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Finalizar evento")
-                    }
-                } else {
-                    if (isRegistered) {
-                        Button(
-                            onClick = { showCancelDialog = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Text("Cancelar participación")
+                    // Chips
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        EventChip(icon = Icons.Filled.SportsScore, text = e.sport, color = MaterialTheme.colorScheme.tertiary)
+                        if (e.distanceKm != null) {
+                            EventChip(icon = Icons.Filled.LocationOn, text = String.format("%.1f km", e.distanceKm), color = MaterialTheme.colorScheme.secondary)
                         }
-                        OutlinedButton(
-                            onClick = { 
-                                scope.launch {
-                                    val result = viewModel.checkIn(e.id, e.latitude, e.longitude)
-                                    if (result.isSuccess) {
-                                        snackbarHostState.showSnackbar("¡Check-in realizado! +10 karma")
-                                    } else {
-                                        val msg = result.exceptionOrNull()?.message ?: "Error al hacer check-in"
-                                        snackbarHostState.showSnackbar(msg)
-                                    }
-                                }
-                            },
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.CalendarToday, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(e.eventDate, style = MaterialTheme.typography.bodyLarge)
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(e.locationName, style = MaterialTheme.typography.bodyLarge)
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.People, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Jugadores", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
+                        Text("${e.currentPlayers} / ${e.maxPlayers}", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LinearProgressIndicator(
+                        progress = if (e.maxPlayers > 0) e.currentPlayers.toFloat() / e.maxPlayers else 0f,
+                        modifier = Modifier.fillMaxWidth().height(12.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+                    )
+
+                    Spacer(modifier = Modifier.height(48.dp))
+
+                    if (isOrganizer) {
+                        PichangButton(
+                            onClick = { navController.navigate("events/${e.id}/attendance") },
+                            text = "Ver inscritos",
                             modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Check-in (Geolocalizado)")
-                        }
-                    } else {
-                        Button(
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        PichangButton(
                             onClick = { 
                                 scope.launch {
-                                    val result = viewModel.joinEvent(e.id)
+                                    val result = viewModel.finishEvent(e.id)
                                     if (result.isSuccess) {
-                                        snackbarHostState.showSnackbar("¡Te uniste al evento!")
-                                    } else {
-                                        val msg = result.exceptionOrNull()?.message ?: "Error al unirse"
-                                        snackbarHostState.showSnackbar(msg)
+                                        snackbarHostState.showSnackbar("Evento finalizado correctamente")
+                                        navController.popBackStack()
                                     }
                                 }
                             },
+                            text = "Finalizar evento",
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = e.currentPlayers < e.maxPlayers
-                        ) {
-                            Text(if (e.currentPlayers < e.maxPlayers) "Unirse al partido" else "Cupos llenos")
+                            isOutlined = true
+                        )
+                    } else {
+                        if (isRegistered) {
+                            PichangButton(
+                                onClick = { showCancelDialog = true },
+                                text = "Cancelar participación",
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            PichangButton(
+                                onClick = { 
+                                    scope.launch {
+                                        val result = viewModel.checkIn(e.id, e.latitude, e.longitude)
+                                        if (result.isSuccess) {
+                                            snackbarHostState.showSnackbar("¡Check-in realizado! +10 karma")
+                                        } else {
+                                            snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Error al hacer check-in")
+                                        }
+                                    }
+                                },
+                                text = "Check-in (Geolocalizado)",
+                                modifier = Modifier.fillMaxWidth(),
+                                isOutlined = true
+                            )
+                        } else {
+                            val isFull = e.currentPlayers >= e.maxPlayers
+                            PichangButton(
+                                onClick = { 
+                                    scope.launch {
+                                        val result = viewModel.joinEvent(e.id)
+                                        if (result.isSuccess) {
+                                            snackbarHostState.showSnackbar("¡Te uniste al evento!")
+                                        } else {
+                                            snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Error al unirse")
+                                        }
+                                    }
+                                },
+                                text = if (isFull) "Cupos llenos" else "Unirse al partido",
+                                modifier = Modifier.fillMaxWidth().scale(if (!isFull) pulseScale else 1f),
+                                enabled = !isFull
+                            )
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun EventChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, color: Color) {
+    Surface(
+        color = color.copy(alpha = 0.1f),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(text, color = color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
         }
     }
 }

@@ -1,5 +1,8 @@
 package cl.duoc.pichangapp.data.model
 
+import androidx.compose.runtime.Stable
+
+@Stable
 data class EventDto(
     val id: Int,
     val organizerId: Int,
@@ -16,6 +19,7 @@ data class EventDto(
     val distanceKm: Double?
 )
 
+@Stable
 data class CreateEventRequest(
     val name: String,
     val sport: String,
@@ -26,16 +30,19 @@ data class CreateEventRequest(
     val maxPlayers: Int
 )
 
+@Stable
 data class EventCheckInRequest(
     val latitude: Double,
     val longitude: Double
 )
 
+@Stable
 data class AttendanceRequest(
     val userId: Int,
     val attended: Boolean
 )
 
+@Stable
 data class EventRegistrationDto(
     val id: Int,
     val userId: Int,

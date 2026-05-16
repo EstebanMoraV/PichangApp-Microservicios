@@ -1,34 +1,29 @@
 package cl.duoc.pichangapp.ui.screens.auth
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import cl.duoc.pichangapp.ui.components.PichangButton
+import cl.duoc.pichangapp.ui.components.PichangCard
+import cl.duoc.pichangapp.ui.components.PichangSnackbar
 
 @Composable
 fun VerifyCodeScreen(
@@ -55,84 +50,144 @@ fun VerifyCodeScreen(
     val isExpired = timeLeft <= 0
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        snackbarHost = { 
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                PichangSnackbar(data)
+            }
+        }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            MaterialTheme.colorScheme.background
+                        )
+                    )
+                )
+                .padding(paddingValues),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "Verifica tu cuenta",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Ingresa el código de 6 dígitos enviado a $email",
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            OutlinedTextField(
-                value = code,
-                onValueChange = { 
-                    if (it.length <= 6 && it.all { char -> char.isDigit() }) {
-                        code = it 
-                    }
-                },
-                label = { Text("Código de 6 dígitos") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                textStyle = MaterialTheme.typography.headlineSmall.copy(textAlign = TextAlign.Center),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = if (isExpired) "El código ha expirado" else "El código expira en $timeFormatted",
-                color = if (isExpired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            if (isExpired) {
-                Button(
-                    onClick = { viewModel.resendCode(email) },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = state !is VerifyCodeState.Loading
+            PichangCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (state is VerifyCodeState.Loading) {
+                    Text(
+                        text = "Verifica tu cuenta",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Ingresa el código de 6 dígitos enviado a $email",
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    BasicTextField(
+                        value = code,
+                        onValueChange = {
+                            if (it.length <= 6 && it.all { char -> char.isDigit() }) {
+                                code = it
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        decorationBox = {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                repeat(6) { index ->
+                                    val char = when {
+                                        index >= code.length -> ""
+                                        else -> code[index].toString()
+                                    }
+                                    val isFocused = code.length == index
+                                    
+                                    val scale by animateFloatAsState(
+                                        targetValue = if (char.isNotEmpty()) 1.1f else 1f,
+                                        animationSpec = tween(150),
+                                        label = "scale"
+                                    )
+                                    val borderColor by animateColorAsState(
+                                        targetValue = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                        label = "color"
+                                    )
+                                    
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .aspectRatio(1f)
+                                            .scale(if (char.isNotEmpty()) 1f else scale) // Reset scale after typing
+                                            .border(
+                                                width = if (isFocused) 2.dp else 1.dp,
+                                                color = borderColor,
+                                                shape = RoundedCornerShape(8.dp)
+                                            )
+                                            .background(
+                                                color = if (char.isNotEmpty()) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent,
+                                                shape = RoundedCornerShape(8.dp)
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = char,
+                                            style = MaterialTheme.typography.headlineMedium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(32.dp))
+                    
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(80.dp)) {
                         CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.padding(2.dp)
+                            progress = timeLeft.toFloat() / 300f, // Assuming 5 minutes (300s)
+                            modifier = Modifier.fillMaxSize(),
+                            color = if (isExpired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                            strokeWidth = 4.dp
+                        )
+                        Text(
+                            text = timeFormatted,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (isExpired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    val isLoading = state is VerifyCodeState.Loading
+                    if (isExpired) {
+                        PichangButton(
+                            onClick = { viewModel.resendCode(email) },
+                            text = "Reenviar código",
+                            isLoading = isLoading
                         )
                     } else {
-                        Text("Reenviar código")
-                    }
-                }
-            } else {
-                Button(
-                    onClick = { viewModel.verifyCode(email, code) },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = state !is VerifyCodeState.Loading && code.length == 6
-                ) {
-                    if (state is VerifyCodeState.Loading) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.padding(2.dp)
+                        PichangButton(
+                            onClick = { viewModel.verifyCode(email, code) },
+                            enabled = code.length == 6,
+                            text = "Verificar",
+                            isLoading = isLoading
                         )
-                    } else {
-                        Text("Verificar")
                     }
                 }
             }
