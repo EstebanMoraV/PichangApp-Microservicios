@@ -9,8 +9,11 @@ import cl.duoc.pichangapp.events_service.model.EventRegistration;
 import cl.duoc.pichangapp.events_service.repository.EventRegistrationRepository;
 import cl.duoc.pichangapp.events_service.repository.EventRepository;
 import lombok.RequiredArgsConstructor;
+import cl.duoc.pichangapp.events_service.dto.NotificationRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -24,6 +27,7 @@ public class EventService {
     private final EventRepository eventRepository;
     private final EventRegistrationRepository eventRegistrationRepository;
     private final KarmaServiceClient karmaServiceClient;
+    private final NotificationServiceClient notificationServiceClient;
 
     @Transactional
     public EventResponseDTO createEvent(CreateEventRequest request, Integer organizerId) {
@@ -112,31 +116,6 @@ public class EventService {
         eventRepository.save(event);
     }
 
-
-    @Transactional
-    public void checkIn(Integer eventId, Integer userId, double userLat, double userLng) {
-        Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new EventNotFoundException("Event not found"));
-                
-        EventRegistration registration = eventRegistrationRepository.findByEventIdAndUserId(eventId, userId)
-                .orElseThrow(() -> new IllegalStateException("User is not registered for this event"));
-
-        if (!"REGISTERED".equals(registration.getStatus())) {
-            throw new IllegalStateException("User has already checked in or is absent");
-        }
-
-        double distance = calculateDistance(userLat, userLng, event.getLatitude(), event.getLongitude());
-        if (distance > 0.5) { // 500 meters
-            throw new IllegalStateException("User is too far from the event location (max 500m)");
-        }
-
-        registration.setStatus("ATTENDED");
-        registration.setCheckedInAt(LocalDateTime.now());
-        eventRegistrationRepository.save(registration);
-
-        karmaServiceClient.registerCheckIn(userId, eventId);
-    }
-
     public List<EventRegistrationDTO> getEventRegistrations(Integer eventId, Integer organizerId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EventNotFoundException("Event not found"));
@@ -149,17 +128,17 @@ public class EventService {
     }
 
     @Transactional
-    public void markAttendance(Integer eventId, Integer organizerId, Integer userId, boolean attended) {
+    public String markAttendance(Integer eventId, Integer organizerId, Integer userId, boolean attended) {
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new EventNotFoundException("Event not found"));
+                .orElseThrow(() -> new EventNotFoundException("Evento no encontrado"));
         if (!event.getOrganizerId().equals(organizerId)) {
-            throw new IllegalStateException("Only the organizer can mark attendance");
+            throw new IllegalStateException("Solo el organizador puede marcar asistencia");
         }
         EventRegistration registration = eventRegistrationRepository.findByEventIdAndUserId(eventId, userId)
-                .orElseThrow(() -> new IllegalStateException("User is not registered"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "El usuario no está inscrito en este evento"));
         
         if (!"REGISTERED".equals(registration.getStatus())) {
-            throw new IllegalStateException("Attendance already marked");
+            throw new IllegalStateException("La asistencia ya fue marcada");
         }
 
         if (attended) {
@@ -170,14 +149,20 @@ public class EventService {
             karmaServiceClient.registerAbsence(userId, eventId);
         }
         eventRegistrationRepository.save(registration);
+        return "Asistencia registrada correctamente";
     }
 
     @Transactional
     public void finishEvent(Integer eventId, Integer organizerId) {
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new EventNotFoundException("Event not found"));
+                .orElseThrow(() -> new EventNotFoundException("Evento no encontrado"));
         if (!event.getOrganizerId().equals(organizerId)) {
-            throw new IllegalStateException("Only the organizer can finish the event");
+            throw new IllegalStateException("Solo el organizador puede finalizar el evento");
+        }
+        
+        if (LocalDateTime.now().isBefore(event.getEventDate().plusMinutes(5))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "No puedes finalizar el evento hasta 5 minutos después de su hora de inicio");
         }
         
         event.setStatus("FINISHED");
@@ -205,8 +190,41 @@ public class EventService {
 
     public List<EventResponseDTO> getOrganizingEvents(Integer userId) {
         return eventRepository.findByOrganizerId(userId).stream()
+                .filter(event -> "ACTIVE".equals(event.getStatus()))
                 .map(event -> mapToDTO(event, null))
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void deleteEvent(Integer eventId, Integer organizerId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EventNotFoundException("Evento no encontrado"));
+        
+        if (!event.getOrganizerId().equals(organizerId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo el organizador puede eliminar el evento");
+        }
+        
+        event.setStatus("CANCELLED");
+        eventRepository.save(event);
+        
+        List<EventRegistration> registrations = eventRegistrationRepository.findByEventId(eventId);
+        for (EventRegistration reg : registrations) {
+            if ("REGISTERED".equals(reg.getStatus()) || "ATTENDED".equals(reg.getStatus())) {
+                karmaServiceClient.registerCheckIn(reg.getUserId(), eventId);
+                
+                NotificationRequest notification = new NotificationRequest();
+                notification.setUserId(reg.getUserId().toString());
+                notification.setTitle("Evento cancelado");
+                notification.setBody("El evento '" + event.getName() + "' fue cancelado. Recibirás tus puntos de karma.");
+                notification.setType("EVENT_CANCELLED");
+                
+                try {
+                    notificationServiceClient.sendNotification(notification);
+                } catch (Exception e) {
+                    // Log error but continue
+                }
+            }
+        }
     }
 
     public double calculateDistance(double lat1, double lng1, double lat2, double lng2) {

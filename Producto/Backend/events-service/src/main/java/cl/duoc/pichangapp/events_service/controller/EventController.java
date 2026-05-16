@@ -61,13 +61,10 @@ public class EventController {
     }
 
 
-    @PostMapping("/{id}/checkin")
-    public ResponseEntity<Void> checkIn(
-            @PathVariable Integer id,
-            @RequestParam double lat,
-            @RequestParam double lng) {
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteEvent(@PathVariable Integer id) {
         Integer userId = getLoggedUserId();
-        eventService.checkIn(id, userId, lat, lng);
+        eventService.deleteEvent(id, userId);
         return ResponseEntity.ok().build();
     }
 
@@ -78,12 +75,12 @@ public class EventController {
     }
 
     @PostMapping("/{id}/attendance")
-    public ResponseEntity<Void> markAttendance(
+    public ResponseEntity<String> markAttendance(
             @PathVariable Integer id,
             @RequestBody AttendanceRequest request) {
         Integer userId = getLoggedUserId();
-        eventService.markAttendance(id, userId, request.getUserId(), request.isAttended());
-        return ResponseEntity.ok().build();
+        String message = eventService.markAttendance(id, userId, request.getUserId(), request.isAttended());
+        return ResponseEntity.ok(message);
     }
 
     @PostMapping("/{id}/finish")

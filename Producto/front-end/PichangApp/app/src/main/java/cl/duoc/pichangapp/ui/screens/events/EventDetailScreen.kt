@@ -31,6 +31,7 @@ import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,8 +49,10 @@ fun EventDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showCancelDialog by remember { mutableStateOf(false) }
+    var showFinishDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Pulse Animation
+    // Pulse animation for the join button
     val infiniteTransition = rememberInfiniteTransition()
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -65,6 +68,89 @@ fun EventDetailScreen(
         viewModel.loadMyEvents()
     }
 
+    // Dialogo de cancelar participación
+    if (showCancelDialog) {
+        AlertDialog(
+            onDismissRequest = { showCancelDialog = false },
+            title = { Text("Cancelar participación") },
+            text = { Text("¿Estás seguro que deseas cancelar tu participación? Si el partido comienza en menos de 2 horas no podrás hacerlo.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showCancelDialog = false
+                    scope.launch {
+                        val result = viewModel.leaveEvent(eventId)
+                        if (result.isSuccess) {
+                            snackbarHostState.showSnackbar("Participación cancelada correctamente")
+                        } else {
+                            snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Error al cancelar")
+                        }
+                    }
+                }) { Text("Confirmar", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelDialog = false }) { Text("Volver") }
+            }
+        )
+    }
+
+    // Dialogo de finalizar evento
+    if (showFinishDialog) {
+        AlertDialog(
+            onDismissRequest = { showFinishDialog = false },
+            title = { Text("Finalizar Evento") },
+            text = { Text("¿Estás seguro? Los participantes que no fueron validados como asistentes recibirán una penalización de karma.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showFinishDialog = false
+                    scope.launch {
+                        val result = viewModel.finishEvent(eventId)
+                        if (result.isSuccess) {
+                            snackbarHostState.showSnackbar("Evento finalizado correctamente")
+                            delay(1500)
+                            navController.navigate("events") {
+                                popUpTo("events") { inclusive = false }
+                            }
+                        } else {
+                            snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Error al finalizar")
+                        }
+                    }
+                }) { Text("Finalizar", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFinishDialog = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    // Dialogo de eliminar evento
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Eliminar evento") },
+            text = { Text("¿Estás seguro? Todos los participantes recibirán sus puntos de karma y una notificación.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    scope.launch {
+                        val result = viewModel.deleteEvent(eventId)
+                        if (result.isSuccess) {
+                            snackbarHostState.showSnackbar("Evento eliminado. Los participantes han sido compensados")
+                            delay(1500)
+                            navController.navigate("events") {
+                                popUpTo("events") { inclusive = false }
+                            }
+                        } else {
+                            snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Error al eliminar")
+                        }
+                    }
+                }) { Text("Eliminar", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) { PichangSnackbar(it) } }
     ) { paddingValues ->
@@ -74,30 +160,6 @@ fun EventDetailScreen(
             val e = event!!
             val isOrganizer = e.organizerId == userId
             val isRegistered = myEvents.any { it.id == eventId }
-            
-            if (showCancelDialog) {
-                AlertDialog(
-                    onDismissRequest = { showCancelDialog = false },
-                    title = { Text("Cancelar participación") },
-                    text = { Text("¿Estás seguro que deseas cancelar tu participación? Si el partido comienza en menos de 2 horas no podrás hacerlo.") },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            showCancelDialog = false
-                            scope.launch {
-                                val result = viewModel.leaveEvent(e.id)
-                                if (result.isSuccess) {
-                                    snackbarHostState.showSnackbar("Participación cancelada")
-                                } else {
-                                    snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Error al cancelar")
-                                }
-                            }
-                        }) { Text("Confirmar", color = MaterialTheme.colorScheme.error) }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showCancelDialog = false }) { Text("Volver") }
-                    }
-                )
-            }
 
             Column(
                 modifier = Modifier
@@ -105,7 +167,7 @@ fun EventDetailScreen(
                     .padding(paddingValues)
                     .verticalScroll(rememberScrollState()),
             ) {
-                // Header with Map
+                // Header with Map + Gradient overlay
                 Box(modifier = Modifier.fillMaxWidth().height(250.dp)) {
                     val latLng = LatLng(e.latitude, e.longitude)
                     val cameraPositionState = rememberCameraPositionState {
@@ -118,8 +180,6 @@ fun EventDetailScreen(
                     ) {
                         Marker(state = MarkerState(position = latLng), title = e.name)
                     }
-
-                    // Gradient Overlay
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -133,10 +193,15 @@ fun EventDetailScreen(
                 }
 
                 Column(modifier = Modifier.padding(24.dp)) {
-                    Text(e.name, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        e.name,
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Chips
+                    // Chips de info
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         EventChip(icon = Icons.Filled.SportsScore, text = e.sport, color = MaterialTheme.colorScheme.tertiary)
                         if (e.distanceKm != null) {
@@ -162,7 +227,11 @@ fun EventDetailScreen(
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Filled.People, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(8.dp))
@@ -183,6 +252,7 @@ fun EventDetailScreen(
 
                     Spacer(modifier = Modifier.height(48.dp))
 
+                    // ========= ACCIONES =========
                     if (isOrganizer) {
                         PichangButton(
                             onClick = { navController.navigate("events/${e.id}/attendance") },
@@ -190,59 +260,71 @@ fun EventDetailScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                         Spacer(modifier = Modifier.height(12.dp))
+                        
+                        val finishTime = try {
+                            java.time.LocalDateTime.parse(e.eventDate).plusMinutes(5)
+                        } catch (ex: Exception) {
+                            java.time.LocalDateTime.now() // Fallback if parsing fails
+                        }
+                        
+                        if (java.time.LocalDateTime.now().isBefore(finishTime)) {
+                            val formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+                            Text(
+                                text = "Podrás finalizar el evento a partir de las ${finishTime.format(formatter)}",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        } else {
+                            PichangButton(
+                                onClick = { showFinishDialog = true },
+                                text = "Finalizar evento",
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
                         PichangButton(
-                            onClick = { 
-                                scope.launch {
-                                    val result = viewModel.finishEvent(e.id)
-                                    if (result.isSuccess) {
-                                        snackbarHostState.showSnackbar("Evento finalizado correctamente")
-                                        navController.popBackStack()
-                                    }
-                                }
-                            },
-                            text = "Finalizar evento",
+                            onClick = { showDeleteDialog = true },
+                            text = "Eliminar evento",
                             modifier = Modifier.fillMaxWidth(),
-                            isOutlined = true
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                         )
                     } else {
                         if (isRegistered) {
+                            // Cancelar participación
                             PichangButton(
                                 onClick = { showCancelDialog = true },
                                 text = "Cancelar participación",
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            PichangButton(
-                                onClick = { 
-                                    scope.launch {
-                                        val result = viewModel.checkIn(e.id, e.latitude, e.longitude)
-                                        if (result.isSuccess) {
-                                            snackbarHostState.showSnackbar("¡Check-in realizado! +10 karma")
-                                        } else {
-                                            snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Error al hacer check-in")
-                                        }
-                                    }
-                                },
-                                text = "Check-in (Geolocalizado)",
-                                modifier = Modifier.fillMaxWidth(),
-                                isOutlined = true
-                            )
+
                         } else {
                             val isFull = e.currentPlayers >= e.maxPlayers
                             PichangButton(
-                                onClick = { 
+                                onClick = {
                                     scope.launch {
                                         val result = viewModel.joinEvent(e.id)
                                         if (result.isSuccess) {
                                             snackbarHostState.showSnackbar("¡Te uniste al evento!")
+                                            delay(1500)
+                                            navController.navigate("events") {
+                                                popUpTo("events") { inclusive = false }
+                                            }
                                         } else {
-                                            snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Error al unirse")
+                                            snackbarHostState.showSnackbar(
+                                                result.exceptionOrNull()?.message ?: "Error al unirse al evento"
+                                            )
                                         }
                                     }
                                 },
                                 text = if (isFull) "Cupos llenos" else "Unirse al partido",
-                                modifier = Modifier.fillMaxWidth().scale(if (!isFull) pulseScale else 1f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .scale(if (!isFull) pulseScale else 1f),
                                 enabled = !isFull
                             )
                         }
