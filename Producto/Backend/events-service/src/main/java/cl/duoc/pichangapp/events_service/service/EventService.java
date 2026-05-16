@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("null")
 public class EventService {
 
     private final EventRepository eventRepository;
@@ -43,7 +44,7 @@ public class EventService {
         event.setCurrentPlayers(0);
         event.setStatus("ACTIVE");
         event.setCreatedAt(LocalDateTime.now());
-        
+
         Event saved = eventRepository.save(event);
         return mapToDTO(saved, null);
     }
@@ -51,7 +52,7 @@ public class EventService {
     public List<EventResponseDTO> findNearbyEvents(double lat, double lng) {
         LocalDateTime now = LocalDateTime.now();
         List<Event> activeEvents = eventRepository.findByStatusAndEventDateAfter("ACTIVE", now);
-        
+
         return activeEvents.stream()
                 .map(event -> {
                     double distance = calculateDistance(lat, lng, event.getLatitude(), event.getLongitude());
@@ -71,7 +72,7 @@ public class EventService {
     public void joinEvent(Integer eventId, Integer userId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EventNotFoundException("Event not found"));
-        
+
         if (!"ACTIVE".equals(event.getStatus())) {
             throw new IllegalStateException("Event is not active");
         }
@@ -103,7 +104,7 @@ public class EventService {
     public void leaveEvent(Integer eventId, Integer userId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EventNotFoundException("Event not found"));
-        
+
         EventRegistration registration = eventRegistrationRepository.findByEventIdAndUserId(eventId, userId)
                 .orElseThrow(() -> new IllegalStateException("User is not registered for this event"));
 
@@ -135,8 +136,9 @@ public class EventService {
             throw new IllegalStateException("Solo el organizador puede marcar asistencia");
         }
         EventRegistration registration = eventRegistrationRepository.findByEventIdAndUserId(eventId, userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "El usuario no está inscrito en este evento"));
-        
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "El usuario no está inscrito en este evento"));
+
         if (!"REGISTERED".equals(registration.getStatus())) {
             throw new IllegalStateException("La asistencia ya fue marcada");
         }
@@ -159,12 +161,12 @@ public class EventService {
         if (!event.getOrganizerId().equals(organizerId)) {
             throw new IllegalStateException("Solo el organizador puede finalizar el evento");
         }
-        
+
         if (LocalDateTime.now().isBefore(event.getEventDate().plusMinutes(5))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "No puedes finalizar el evento hasta 5 minutos después de su hora de inicio");
+                    "No puedes finalizar el evento hasta 5 minutos después de su hora de inicio");
         }
-        
+
         event.setStatus("FINISHED");
         event.setFinishedAt(LocalDateTime.now());
         eventRepository.save(event);
@@ -199,25 +201,26 @@ public class EventService {
     public void deleteEvent(Integer eventId, Integer organizerId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EventNotFoundException("Evento no encontrado"));
-        
+
         if (!event.getOrganizerId().equals(organizerId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo el organizador puede eliminar el evento");
         }
-        
+
         event.setStatus("CANCELLED");
         eventRepository.save(event);
-        
+
         List<EventRegistration> registrations = eventRegistrationRepository.findByEventId(eventId);
         for (EventRegistration reg : registrations) {
             if ("REGISTERED".equals(reg.getStatus()) || "ATTENDED".equals(reg.getStatus())) {
                 karmaServiceClient.registerCheckIn(reg.getUserId(), eventId);
-                
+
                 NotificationRequest notification = new NotificationRequest();
                 notification.setUserId(reg.getUserId().toString());
                 notification.setTitle("Evento cancelado");
-                notification.setBody("El evento '" + event.getName() + "' fue cancelado. Recibirás tus puntos de karma.");
+                notification
+                        .setBody("El evento '" + event.getName() + "' fue cancelado. Recibirás tus puntos de karma.");
                 notification.setType("EVENT_CANCELLED");
-                
+
                 try {
                     notificationServiceClient.sendNotification(notification);
                 } catch (Exception e) {
@@ -233,7 +236,7 @@ public class EventService {
         double lngDistance = Math.toRadians(lng2 - lng1);
         double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
                 + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(lngDistance / 2) * Math.sin(lngDistance / 2);
+                        * Math.sin(lngDistance / 2) * Math.sin(lngDistance / 2);
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
     }

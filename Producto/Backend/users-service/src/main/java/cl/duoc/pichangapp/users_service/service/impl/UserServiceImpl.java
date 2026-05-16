@@ -29,6 +29,7 @@ import java.util.Random;
  * Usa ResponseStatusException para devolver códigos HTTP claros sin crear clases propias.
  */
 @Service
+@SuppressWarnings("null")
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;

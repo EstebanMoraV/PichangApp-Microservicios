@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
+@SuppressWarnings("null")
 public class RateLimitingFilter implements GlobalFilter, Ordered {
 
     // Mapa concurrente para almacenar los "buckets" de tokens por dirección IP

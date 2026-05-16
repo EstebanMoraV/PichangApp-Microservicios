@@ -16,6 +16,7 @@ import reactor.core.publisher.Mono;
 import java.util.List;
 
 @Component
+@SuppressWarnings("null")
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private final JwtProvider jwtProvider;

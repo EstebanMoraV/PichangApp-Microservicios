@@ -4,6 +4,7 @@ import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
@@ -14,16 +15,23 @@ import reactor.core.publisher.Mono;
 public class GlobalErrorHandler implements ErrorWebExceptionHandler {
 
     @Override
-    public Mono<Void> handle(ServerWebExchange exchange, Throwable ex) {
+    @NonNull
+    public Mono<Void> handle(@NonNull ServerWebExchange exchange, @NonNull Throwable ex) {
         HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
-        
+
         if (ex instanceof ResponseStatusException responseStatusException) {
-            status = HttpStatus.resolve(responseStatusException.getStatusCode().value());
+            HttpStatus resolved = HttpStatus.resolve(responseStatusException.getStatusCode().value());
+            if (resolved != null) {
+                status = resolved;
+            }
         }
 
         // Si ya hay un status asignado a la respuesta (ej. por RateLimiting o JwtAuthentication), usar ese
         if (exchange.getResponse().getStatusCode() != null) {
-            status = HttpStatus.resolve(exchange.getResponse().getStatusCode().value());
+            HttpStatus resolved = HttpStatus.resolve(exchange.getResponse().getStatusCode().value());
+            if (resolved != null) {
+                status = resolved;
+            }
         }
 
         exchange.getResponse().setStatusCode(status);
@@ -37,6 +45,9 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
         );
 
         byte[] bytes = jsonResponse.getBytes();
-        return exchange.getResponse().writeWith(Mono.just(exchange.getResponse().bufferFactory().wrap(bytes)));
+        @SuppressWarnings("NullableProblems")
+        Mono<Void> result = exchange.getResponse().writeWith(
+                Mono.just(exchange.getResponse().bufferFactory().wrap(bytes)));
+        return result;
     }
 }

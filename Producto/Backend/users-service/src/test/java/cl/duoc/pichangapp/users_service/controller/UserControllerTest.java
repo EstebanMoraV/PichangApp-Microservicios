@@ -28,7 +28,7 @@ class UserControllerTest {
         ResponseEntity<Boolean> response = userController.userExists(1);
         
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.getBody());
+        assertTrue(Boolean.TRUE.equals(response.getBody()));
     }
 
     @Test
