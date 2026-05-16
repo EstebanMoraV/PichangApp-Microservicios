@@ -19,3 +19,11 @@ data class NotificationSendRequest(
     val body: String,
     val type: String
 )
+
+data class NotificationPageResponse(
+    val content: List<NotificationDto>,
+    val totalElements: Int,
+    val totalPages: Int,
+    val size: Int,
+    val number: Int
+)

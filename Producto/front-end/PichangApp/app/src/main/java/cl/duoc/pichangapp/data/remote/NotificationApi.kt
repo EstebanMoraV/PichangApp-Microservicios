@@ -25,5 +25,5 @@ interface NotificationApi {
         @Path("id") userId: String,
         @Query("page") page: Int = 0,
         @Query("size") size: Int = 10
-    ): Response<List<NotificationDto>> // Adjust this if the backend returns a Paged format like { "content": [...] }
+    ): retrofit2.Response<cl.duoc.pichangapp.data.model.NotificationPageResponse>
 }
