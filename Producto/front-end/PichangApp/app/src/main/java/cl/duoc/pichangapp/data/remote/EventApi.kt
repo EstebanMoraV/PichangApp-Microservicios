@@ -25,11 +25,8 @@ interface EventApi {
     @POST("api/v1/events/{id}/join")
     suspend fun joinEvent(@Path("id") id: Int): Response<Unit>
 
-    @POST("api/v1/events/{id}/checkin")
-    suspend fun checkIn(
-        @Path("id") id: Int,
-        @Body location: EventCheckInRequest
-    ): Response<Unit>
+    @DELETE("api/v1/events/{id}")
+    suspend fun deleteEvent(@Path("id") id: Int): Response<Unit>
 
     @GET("api/v1/events/{id}/registrations")
     suspend fun getRegistrations(@Path("id") id: Int): List<EventRegistrationDto>

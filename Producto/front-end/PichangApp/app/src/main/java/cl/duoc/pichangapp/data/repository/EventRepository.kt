@@ -18,7 +18,7 @@ class EventRepository @Inject constructor(
     
     suspend fun joinEvent(id: Int): Response<Unit> = eventApi.joinEvent(id)
     
-    suspend fun checkIn(id: Int, lat: Double, lng: Double): Response<Unit> = eventApi.checkIn(id, EventCheckInRequest(lat, lng))
+    suspend fun deleteEvent(id: Int): Response<Unit> = eventApi.deleteEvent(id)
     
     suspend fun getRegistrations(id: Int): List<EventRegistrationDto> = eventApi.getRegistrations(id)
     

@@ -17,7 +17,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error = new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.NOT_FOUND.value(),
-                "Not Found",
+                "No Encontrado",
                 ex.getMessage(),
                 request.getDescription(false).replace("uri=", "")
         );
@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error = new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.BAD_REQUEST.value(),
-                "Bad Request",
+                "Petición Incorrecta",
                 ex.getMessage(),
                 request.getDescription(false).replace("uri=", "")
         );
@@ -41,7 +41,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error = new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "Internal Server Error",
+                "Error Interno del Servidor",
                 ex.getMessage(),
                 request.getDescription(false).replace("uri=", "")
         );

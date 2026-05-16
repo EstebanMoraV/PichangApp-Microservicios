@@ -35,6 +35,7 @@ fun AttendanceScreen(
     viewModel: EventsViewModel = hiltViewModel()
 ) {
     val registrations by viewModel.registrations.collectAsState()
+    val eventDetail by viewModel.eventDetail.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -43,6 +44,7 @@ fun AttendanceScreen(
 
     LaunchedEffect(eventId) {
         viewModel.loadRegistrations(eventId)
+        viewModel.loadEventDetail(eventId)
     }
 
     // Dialogo de confirmación finalizar evento
@@ -95,8 +97,8 @@ fun AttendanceScreen(
             } else if (registrations.isEmpty()) {
                 EmptyState(
                     emoji = "✅",
-                    title = "Todos validados",
-                    message = "Todos los participantes han sido validados."
+                    title = "Todos procesados",
+                    message = "Todos los participantes han sido procesados."
                 )
             } else {
                 Text(
@@ -128,12 +130,30 @@ fun AttendanceScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            PichangButton(
-                onClick = { showFinishDialog = true },
-                text = "Finalizar Evento",
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-            )
+            eventDetail?.let { e ->
+                val finishTime = try {
+                    java.time.LocalDateTime.parse(e.eventDate).plusMinutes(5)
+                } catch (ex: Exception) {
+                    java.time.LocalDateTime.now() // Fallback if parsing fails
+                }
+
+                if (java.time.LocalDateTime.now().isBefore(finishTime)) {
+                    val formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+                    Text(
+                        text = "Podrás finalizar el evento a partir de las ${finishTime.format(formatter)}",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                } else {
+                    PichangButton(
+                        onClick = { showFinishDialog = true },
+                        text = "Finalizar Evento",
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    )
+                }
+            }
         }
     }
 }

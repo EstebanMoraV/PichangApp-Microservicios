@@ -163,13 +163,15 @@ class EventsViewModel @Inject constructor(
         }
     }
 
-    suspend fun checkIn(eventId: Int, lat: Double, lng: Double): Result<Unit> {
+    suspend fun deleteEvent(eventId: Int): Result<Unit> {
         return try {
-            val response = eventRepository.checkIn(eventId, lat, lng)
+            val response = eventRepository.deleteEvent(eventId)
             if (response.isSuccessful) {
+                loadMyEvents()
+                loadOrganizingEvents()
                 Result.success(Unit)
             } else {
-                val errorMsg = parseErrorMessage(response.errorBody()?.string(), "Error al hacer check-in")
+                val errorMsg = parseErrorMessage(response.errorBody()?.string(), "Error al eliminar el evento")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {

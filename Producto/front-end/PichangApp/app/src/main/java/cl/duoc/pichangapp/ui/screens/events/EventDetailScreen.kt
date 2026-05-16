@@ -50,6 +50,7 @@ fun EventDetailScreen(
     val scope = rememberCoroutineScope()
     var showCancelDialog by remember { mutableStateOf(false) }
     var showFinishDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     // Pulse animation for the join button
     val infiniteTransition = rememberInfiniteTransition()
@@ -117,6 +118,35 @@ fun EventDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showFinishDialog = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    // Dialogo de eliminar evento
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Eliminar evento") },
+            text = { Text("¿Estás seguro? Todos los participantes recibirán sus puntos de karma y una notificación.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    scope.launch {
+                        val result = viewModel.deleteEvent(eventId)
+                        if (result.isSuccess) {
+                            snackbarHostState.showSnackbar("Evento eliminado. Los participantes han sido compensados")
+                            delay(1500)
+                            navController.navigate("events") {
+                                popUpTo("events") { inclusive = false }
+                            }
+                        } else {
+                            snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Error al eliminar")
+                        }
+                    }
+                }) { Text("Eliminar", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar") }
             }
         )
     }
@@ -230,30 +260,40 @@ fun EventDetailScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                         Spacer(modifier = Modifier.height(12.dp))
+                        
+                        val finishTime = try {
+                            java.time.LocalDateTime.parse(e.eventDate).plusMinutes(5)
+                        } catch (ex: Exception) {
+                            java.time.LocalDateTime.now() // Fallback if parsing fails
+                        }
+                        
+                        if (java.time.LocalDateTime.now().isBefore(finishTime)) {
+                            val formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+                            Text(
+                                text = "Podrás finalizar el evento a partir de las ${finishTime.format(formatter)}",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        } else {
+                            PichangButton(
+                                onClick = { showFinishDialog = true },
+                                text = "Finalizar evento",
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
                         PichangButton(
-                            onClick = { showFinishDialog = true },
-                            text = "Finalizar evento",
+                            onClick = { showDeleteDialog = true },
+                            text = "Eliminar evento",
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                         )
                     } else {
                         if (isRegistered) {
-                            // Check-in geolocalizado
-                            PichangButton(
-                                onClick = {
-                                    scope.launch {
-                                        val result = viewModel.checkIn(e.id, e.latitude, e.longitude)
-                                        if (result.isSuccess) {
-                                            snackbarHostState.showSnackbar("¡Check-in realizado! +10 karma")
-                                        } else {
-                                            snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Error al hacer check-in")
-                                        }
-                                    }
-                                },
-                                text = "Check-in (Geolocalizado)",
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
                             // Cancelar participación
                             PichangButton(
                                 onClick = { showCancelDialog = true },
@@ -261,6 +301,7 @@ fun EventDetailScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                             )
+
                         } else {
                             val isFull = e.currentPlayers >= e.maxPlayers
                             PichangButton(
