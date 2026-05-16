@@ -1,0 +1,10 @@
+SPRING_PROFILES_ACTIVE=prod
+JAVA_OPTS=-Dspring.profiles.active=prod
+JWT_SECRET=change_this_secret_for_dev_only_change_in_prod_very_long_key
+DATABASE_URL=jdbc:mysql://mysql.railway.internal:3306/pichangapp_events?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+DB_USERNAME=root
+DB_PASSWORD=your_db_password
+KARMA_SERVICE_URL=http://karma-service.railway.internal:8080
+USERS_SERVICE_URL=http://users-service.railway.internal:8080
+SERVICE_INTERNAL_TOKEN=change_this_secret_for_dev_only_change_in_prod_very_long_key
+EVENTS_SERVICE_URL=http://events-service.railway.internal:8080
