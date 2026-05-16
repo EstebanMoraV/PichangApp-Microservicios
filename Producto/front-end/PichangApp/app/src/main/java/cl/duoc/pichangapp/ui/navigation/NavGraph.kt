@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -30,6 +31,9 @@ import cl.duoc.pichangapp.ui.screens.notifications.NotificationsScreen
 import cl.duoc.pichangapp.ui.screens.profile.ProfileScreen
 import cl.duoc.pichangapp.ui.screens.splash.SplashScreen
 import cl.duoc.pichangapp.ui.screens.events.EventsScreen
+import cl.duoc.pichangapp.ui.screens.events.CreateEventScreen
+import cl.duoc.pichangapp.ui.screens.events.EventDetailScreen
+import cl.duoc.pichangapp.ui.screens.events.AttendanceScreen
 
 sealed class Screen(val route: String, val title: String? = null, val icon: ImageVector? = null) {
     object Splash : Screen("splash")
@@ -39,11 +43,13 @@ sealed class Screen(val route: String, val title: String? = null, val icon: Imag
     object Karma : Screen("karma", "Karma", Icons.Filled.Star)
     object Notifications : Screen("notifications", "Notificaciones", Icons.Filled.Notifications)
     object Profile : Screen("profile", "Perfil", Icons.Filled.Person)
+    object Events : Screen("events", "Eventos", Icons.Filled.Map)
 }
 
 val bottomNavItems = listOf(
     Screen.Home,
     Screen.Karma,
+    Screen.Events,
     Screen.Notifications,
     Screen.Profile
 )
@@ -134,9 +140,19 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
                     }
                 )
             }
-            composable("events?tab={tab}") { backStackEntry ->
-                val tab = backStackEntry.arguments?.getString("tab") ?: "mis-eventos"
-                EventsScreen(navController = navController, initialTab = tab)
+            composable("events") {
+                EventsScreen(navController = navController)
+            }
+            composable("events/create") {
+                CreateEventScreen(navController = navController)
+            }
+            composable("events/{id}") { backStackEntry ->
+                val id = backStackEntry.arguments?.getString("id")?.toIntOrNull() ?: 0
+                EventDetailScreen(navController = navController, eventId = id)
+            }
+            composable("events/{id}/attendance") { backStackEntry ->
+                val id = backStackEntry.arguments?.getString("id")?.toIntOrNull() ?: 0
+                AttendanceScreen(navController = navController, eventId = id)
             }
             composable(Screen.Home.route) {
                 HomeScreen(navController = navController)

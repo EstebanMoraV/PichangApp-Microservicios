@@ -2,6 +2,7 @@ package cl.duoc.pichangapp.di
 
 import cl.duoc.pichangapp.core.network.AuthInterceptor
 import cl.duoc.pichangapp.data.remote.AuthApi
+import cl.duoc.pichangapp.data.remote.EventApi
 import cl.duoc.pichangapp.data.remote.KarmaApi
 import cl.duoc.pichangapp.data.remote.NotificationApi
 import cl.duoc.pichangapp.data.remote.UserApi
@@ -70,4 +71,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideNotificationApi(retrofit: Retrofit): NotificationApi = retrofit.create(NotificationApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideEventApi(retrofit: Retrofit): EventApi = retrofit.create(EventApi::class.java)
 }

@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="emerald_dark">#005005</color>
-    <color name="emerald_primary">#2E7D32</color>
-    <string name="app_name">PichangApp</string>
-    <style name="Theme.PichangApp" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">@color/emerald_primary</item>
-    </style>
-</resources>

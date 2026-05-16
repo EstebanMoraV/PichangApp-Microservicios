@@ -127,13 +127,13 @@ fun HomeScreen(
                     title = "Crear Partido",
                     icon = Icons.Filled.Add,
                     modifier = Modifier.weight(1f),
-                    onClick = { navController?.navigate("events?tab=crear-partido") }
+                    onClick = { navController?.navigate("events/create") }
                 )
                 QuickActionCard(
                     title = "Mis Eventos",
                     icon = Icons.Filled.Event,
                     modifier = Modifier.weight(1f),
-                    onClick = { navController?.navigate("events?tab=mis-eventos") }
+                    onClick = { navController?.navigate("events") }
                 )
             }
         }

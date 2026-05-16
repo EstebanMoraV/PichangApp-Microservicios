@@ -1,3 +1,0 @@
--keep,allowobfuscation,allowshrinking class cl.duoc.pichangapp.ui.screens.auth.LoginViewModel
--keep,allowobfuscation,allowshrinking class cl.duoc.pichangapp.ui.screens.auth.LoginViewModel
--keep,allowobfuscation,allowshrinking class cl.duoc.pichangapp.ui.screens.auth.RegisterViewModel
