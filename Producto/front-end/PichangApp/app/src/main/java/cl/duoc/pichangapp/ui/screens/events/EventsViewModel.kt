@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import javax.inject.Inject
 
 @HiltViewModel
@@ -82,11 +83,17 @@ class EventsViewModel @Inject constructor(
 
     suspend fun joinEvent(eventId: Int): Result<Unit> {
         return try {
-            eventRepository.joinEvent(eventId)
-            loadMyEvents()
-            Result.success(Unit)
+            val response = eventRepository.joinEvent(eventId)
+            if (response.isSuccessful) {
+                loadMyEvents()
+                loadEventDetail(eventId)
+                Result.success(Unit)
+            } else {
+                val errorMsg = parseErrorMessage(response.errorBody()?.string(), "Error al unirse al evento")
+                Result.failure(Exception(errorMsg))
+            }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception(e.message ?: "Error de conexión"))
         }
     }
     
@@ -117,11 +124,16 @@ class EventsViewModel @Inject constructor(
     
     suspend fun finishEvent(eventId: Int): Result<Unit> {
         return try {
-            eventRepository.finishEvent(eventId)
-            loadOrganizingEvents()
-            Result.success(Unit)
+            val response = eventRepository.finishEvent(eventId)
+            if (response.isSuccessful) {
+                loadOrganizingEvents()
+                Result.success(Unit)
+            } else {
+                val errorMsg = parseErrorMessage(response.errorBody()?.string(), "Error al finalizar evento")
+                Result.failure(Exception(errorMsg))
+            }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception(e.message ?: "Error de conexión"))
         }
     }
 
@@ -153,20 +165,45 @@ class EventsViewModel @Inject constructor(
 
     suspend fun checkIn(eventId: Int, lat: Double, lng: Double): Result<Unit> {
         return try {
-            eventRepository.checkIn(eventId, lat, lng)
-            Result.success(Unit)
+            val response = eventRepository.checkIn(eventId, lat, lng)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                val errorMsg = parseErrorMessage(response.errorBody()?.string(), "Error al hacer check-in")
+                Result.failure(Exception(errorMsg))
+            }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception(e.message ?: "Error de conexión"))
         }
     }
 
     suspend fun markAttendance(eventId: Int, userId: Int, attended: Boolean): Result<Unit> {
         return try {
-            eventRepository.markAttendance(eventId, userId, attended)
-            loadRegistrations(eventId) // Refresh list
-            Result.success(Unit)
+            val response = eventRepository.markAttendance(eventId, userId, attended)
+            if (response.isSuccessful) {
+                // Remover el registro de la lista local inmediatamente
+                _registrations.value = _registrations.value.filter { it.userId != userId }
+                Result.success(Unit)
+            } else {
+                val errorMsg = parseErrorMessage(response.errorBody()?.string(), "Error al registrar asistencia")
+                Result.failure(Exception(errorMsg))
+            }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception(e.message ?: "Error de conexión"))
+        }
+    }
+
+    private fun parseErrorMessage(errorBody: String?, fallback: String): String {
+        if (errorBody.isNullOrBlank()) return fallback
+        return try {
+            val json = JSONObject(errorBody)
+            json.optString("message", null)
+                ?: json.optString("error", null)
+                ?: json.optString("detail", null)
+                ?: fallback
+        } catch (e: Exception) {
+            // Si no es JSON, devolver el texto plano pero evitar mensajes técnicos
+            if (errorBody.length < 200) errorBody else fallback
         }
     }
 

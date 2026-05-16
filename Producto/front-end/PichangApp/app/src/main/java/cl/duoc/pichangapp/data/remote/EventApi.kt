@@ -1,6 +1,7 @@
 package cl.duoc.pichangapp.data.remote
 
 import cl.duoc.pichangapp.data.model.*
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -22,13 +23,13 @@ interface EventApi {
     suspend fun createEvent(@Body request: CreateEventRequest): EventDto
 
     @POST("api/v1/events/{id}/join")
-    suspend fun joinEvent(@Path("id") id: Int): Any
+    suspend fun joinEvent(@Path("id") id: Int): Response<Unit>
 
     @POST("api/v1/events/{id}/checkin")
     suspend fun checkIn(
         @Path("id") id: Int,
         @Body location: EventCheckInRequest
-    ): Any
+    ): Response<Unit>
 
     @GET("api/v1/events/{id}/registrations")
     suspend fun getRegistrations(@Path("id") id: Int): List<EventRegistrationDto>
@@ -37,10 +38,10 @@ interface EventApi {
     suspend fun markAttendance(
         @Path("id") id: Int,
         @Body request: AttendanceRequest
-    ): Any
+    ): Response<Unit>
 
     @POST("api/v1/events/{id}/finish")
-    suspend fun finishEvent(@Path("id") id: Int): Any
+    suspend fun finishEvent(@Path("id") id: Int): Response<Unit>
 
     @GET("api/v1/events/my-events")
     suspend fun getMyEvents(): List<EventDto>
