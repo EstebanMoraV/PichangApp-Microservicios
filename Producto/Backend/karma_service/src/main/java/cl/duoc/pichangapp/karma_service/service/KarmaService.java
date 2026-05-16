@@ -28,6 +28,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("null")
 public class KarmaService {
 
     private final KarmaScoreRepository karmaScoreRepository;

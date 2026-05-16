@@ -12,6 +12,7 @@ import reactor.core.publisher.Mono;
 
 @Component
 @Order(-2) // Alta prioridad para atrapar errores antes del default
+@SuppressWarnings("null")
 public class GlobalErrorHandler implements ErrorWebExceptionHandler {
 
     @Override
@@ -27,8 +28,9 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
         }
 
         // Si ya hay un status asignado a la respuesta (ej. por RateLimiting o JwtAuthentication), usar ese
-        if (exchange.getResponse().getStatusCode() != null) {
-            HttpStatus resolved = HttpStatus.resolve(exchange.getResponse().getStatusCode().value());
+        org.springframework.http.HttpStatusCode currentStatus = exchange.getResponse().getStatusCode();
+        if (currentStatus != null) {
+            HttpStatus resolved = HttpStatus.resolve(currentStatus.value());
             if (resolved != null) {
                 status = resolved;
             }
