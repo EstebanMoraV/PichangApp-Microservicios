@@ -1,5 +1,8 @@
 package cl.duoc.pichangapp.data.model
 
+import androidx.compose.runtime.Stable
+
+@Stable
 data class NotificationDto(
     val id: String?,
     val title: String,
@@ -8,11 +11,13 @@ data class NotificationDto(
     val timestamp: String? = null
 )
 
+@Stable
 data class DeviceTokenRequest(
     val userId: String,
     val token: String
 )
 
+@Stable
 data class NotificationSendRequest(
     val userId: String,
     val title: String,
@@ -20,6 +25,7 @@ data class NotificationSendRequest(
     val type: String
 )
 
+@Stable
 data class NotificationPageResponse(
     val content: List<NotificationDto>,
     val totalElements: Int,

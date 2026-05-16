@@ -1,36 +1,32 @@
 package cl.duoc.pichangapp.ui.screens.auth
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Scaffold
+import cl.duoc.pichangapp.ui.components.PichangButton
+import cl.duoc.pichangapp.ui.components.PichangCard
+import cl.duoc.pichangapp.ui.components.PichangSnackbar
+import cl.duoc.pichangapp.ui.components.PichangTextField
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -43,7 +39,12 @@ fun LoginScreen(
 
     var correo by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var emailError by remember { mutableStateOf(false) }
+    var passwordError by remember { mutableStateOf(false) }
+
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val shakeAnim = remember { Animatable(0f) }
 
     LaunchedEffect(mensaje) {
         if (!mensaje.isNullOrBlank()) {
@@ -56,68 +57,133 @@ fun LoginScreen(
             onNavigateToHome()
         } else if (state is LoginState.Error) {
             snackbarHostState.showSnackbar((state as LoginState.Error).message)
+            // Shake animation on error
+            scope.launch {
+                for (i in 0..5) {
+                    shakeAnim.animateTo(if (i % 2 == 0) 10f else -10f, animationSpec = tween(50))
+                }
+                shakeAnim.animateTo(0f)
+            }
         }
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                PichangSnackbar(data)
+            }
+        }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Bienvenido a PichangApp",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            OutlinedTextField(
-                value = correo,
-                onValueChange = { correo = it },
-                label = { Text("Correo electrónico") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Contraseña") },
-                modifier = Modifier.fillMaxWidth(),
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = { viewModel.login(correo, password) },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = state !is LoginState.Loading && correo.isNotBlank() && password.isNotBlank()
-            ) {
-                if (state is LoginState.Loading) {
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.padding(2.dp)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            MaterialTheme.colorScheme.background
+                        )
                     )
-                } else {
-                    Text("Iniciar Sesión")
+                )
+                .padding(paddingValues),
+            contentAlignment = Alignment.Center
+        ) {
+            PichangCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+                    .graphicsLayer(translationX = shakeAnim.value)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(24.dp)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Bienvenido de nuevo",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Inicia sesión para continuar",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
+                    )
+
+                    PichangTextField(
+                        value = correo,
+                        onValueChange = { 
+                            correo = it
+                            emailError = false
+                        },
+                        label = "Correo electrónico",
+                        isError = emailError,
+                        errorMessage = "Ingresa un correo válido",
+                        leadingIcon = { Icon(Icons.Filled.Email, contentDescription = null) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    PichangTextField(
+                        value = password,
+                        onValueChange = { 
+                            password = it
+                            passwordError = false
+                        },
+                        label = "Contraseña",
+                        isError = passwordError,
+                        errorMessage = "Debe tener al menos 6 caracteres",
+                        leadingIcon = { Icon(Icons.Filled.Lock, contentDescription = null) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    val isLoading = state is LoginState.Loading
+                    PichangButton(
+                        onClick = {
+                            var valid = true
+                            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(correo).matches()) {
+                                emailError = true
+                                valid = false
+                            }
+                            if (password.length < 6) {
+                                passwordError = true
+                                valid = false
+                            }
+                            
+                            if (valid) {
+                                viewModel.login(correo, password)
+                            } else {
+                                scope.launch {
+                                    for (i in 0..5) {
+                                        shakeAnim.animateTo(if (i % 2 == 0) 10f else -10f, animationSpec = tween(50))
+                                    }
+                                    shakeAnim.animateTo(0f)
+                                }
+                            }
+                        },
+                        text = "Iniciar Sesión",
+                        isLoading = isLoading
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    TextButton(onClick = onNavigateToRegister) {
+                        Text(
+                            text = "¿No tienes cuenta? Regístrate aquí",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            TextButton(onClick = onNavigateToRegister) {
-                Text("¿No tienes cuenta? Regístrate aquí")
             }
         }
     }
