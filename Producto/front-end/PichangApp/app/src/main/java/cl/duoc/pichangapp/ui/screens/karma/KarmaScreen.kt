@@ -93,7 +93,7 @@ fun KarmaScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(
-                        progress = animatedScore.value / 1000f, // Assume 1000 is max
+                        progress = { animatedScore.value / 1000f }, // Assume 1000 is max
                         modifier = Modifier.fillMaxSize(),
                         color = badgeColor,
                         strokeWidth = 8.dp,
