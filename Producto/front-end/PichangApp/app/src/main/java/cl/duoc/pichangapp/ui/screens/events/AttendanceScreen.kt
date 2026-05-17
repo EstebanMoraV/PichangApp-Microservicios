@@ -108,6 +108,28 @@ fun AttendanceScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
+                val finishTime = eventDetail?.let { e ->
+                    try {
+                        java.time.LocalDateTime.parse(e.eventDate).plusMinutes(5)
+                    } catch (ex: Exception) {
+                        java.time.LocalDateTime.now()
+                    }
+                }
+                
+                val isActionEnabled = finishTime?.let {
+                    !java.time.LocalDateTime.now().isBefore(it)
+                } ?: true
+
+                if (!isActionEnabled && finishTime != null) {
+                    val formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+                    Text(
+                        text = "Podrás registrar asistencia a partir de las ${finishTime.format(formatter)}",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                }
+
                 LazyColumn(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -121,7 +143,8 @@ fun AttendanceScreen(
                                 reg = reg,
                                 eventId = eventId,
                                 viewModel = viewModel,
-                                snackbarHostState = snackbarHostState
+                                snackbarHostState = snackbarHostState,
+                                isActionEnabled = isActionEnabled
                             )
                         }
                     }
@@ -163,7 +186,8 @@ fun AttendanceRow(
     reg: cl.duoc.pichangapp.data.model.EventRegistrationDto,
     eventId: Int,
     viewModel: EventsViewModel,
-    snackbarHostState: SnackbarHostState
+    snackbarHostState: SnackbarHostState,
+    isActionEnabled: Boolean = true
 ) {
     var userName by remember { mutableStateOf("Usuario #${reg.userId}") }
     val scope = rememberCoroutineScope()
@@ -226,6 +250,7 @@ fun AttendanceRow(
                         }
                     }
                 },
+                enabled = isActionEnabled,
                 colors = IconButtonDefaults.iconButtonColors(
                     contentColor = Color(0xFF2E7D32),
                     containerColor = Color(0xFF2E7D32).copy(alpha = 0.1f)
@@ -250,6 +275,7 @@ fun AttendanceRow(
                         }
                     }
                 },
+                enabled = isActionEnabled,
                 colors = IconButtonDefaults.iconButtonColors(
                     contentColor = MaterialTheme.colorScheme.error,
                     containerColor = MaterialTheme.colorScheme.errorContainer
