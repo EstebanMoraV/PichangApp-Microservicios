@@ -8,6 +8,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -20,8 +24,8 @@ public class KarmaServiceClient {
     @Value("${karma.service.url:http://localhost:8082}")
     private String karmaServiceUrl;
 
-    @Value("${service.internal.token}")
-    private String internalToken;
+    @Value("${app.jwt.secret}")
+    private String jwtSecret;
 
     private final RestTemplate restTemplate;
 
@@ -29,10 +33,19 @@ public class KarmaServiceClient {
         this.restTemplate = restTemplateBuilder.build();
     }
 
+    private String generateInternalToken() {
+        return Jwts.builder()
+            .setSubject("events-service")
+            .setIssuedAt(new Date())
+            .setExpiration(new Date(System.currentTimeMillis() + 3600000)) // 1 hora
+            .signWith(Keys.hmacShaKeyFor(jwtSecret.getBytes()), SignatureAlgorithm.HS256)
+            .compact();
+    }
+
     private HttpHeaders getHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(internalToken);
+        headers.setBearerAuth(generateInternalToken());
         return headers;
     }
 
@@ -48,6 +61,7 @@ public class KarmaServiceClient {
             log.info("Karma check-in registered for user {}, event {}, status {}", userId, eventId, response.getStatusCode());
         } catch (Exception e) {
             log.error("Failed to register check-in in karma service: {}", e.getMessage());
+            throw new RuntimeException("Error al registrar check-in", e);
         }
     }
 
@@ -59,6 +73,7 @@ public class KarmaServiceClient {
             log.info("Karma absence registered for user {}, event {}, status {}", userId, eventId, response.getStatusCode());
         } catch (Exception e) {
             log.error("Failed to register absence in karma service: {}", e.getMessage());
+            throw new RuntimeException("Error al registrar absence", e);
         }
     }
 }
