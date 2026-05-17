@@ -42,11 +42,22 @@ class EventsViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private var lastLat: Double? = null
+    private var lastLng: Double? = null
+
+    fun refresh() {
+        lastLat?.let { lat -> lastLng?.let { lng -> loadEvents(lat, lng) } }
+        loadMyEvents()
+        loadOrganizingEvents()
+    }
+
     fun loadEvents(lat: Double, lng: Double) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                _events.value = eventRepository.getEvents(lat, lng)
+                lastLat = lat
+                lastLng = lng
+                _events.value = eventRepository.getEvents(lat, lng).filter { it.status == "ACTIVE" }
             } catch (e: Exception) {
                 _error.value = e.message
             } finally {
@@ -59,7 +70,7 @@ class EventsViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                _myEvents.value = eventRepository.getMyEvents()
+                _myEvents.value = eventRepository.getMyEvents().filter { it.status == "ACTIVE" }
             } catch (e: Exception) {
                 _error.value = e.message
             } finally {
@@ -72,7 +83,7 @@ class EventsViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                _organizingEvents.value = eventRepository.getOrganizingEvents()
+                _organizingEvents.value = eventRepository.getOrganizingEvents().filter { it.status == "ACTIVE" }
             } catch (e: Exception) {
                 _error.value = e.message
             } finally {
@@ -85,7 +96,7 @@ class EventsViewModel @Inject constructor(
         return try {
             val response = eventRepository.joinEvent(eventId)
             if (response.isSuccessful) {
-                loadMyEvents()
+                refresh()
                 loadEventDetail(eventId)
                 Result.success(Unit)
             } else {
@@ -101,8 +112,8 @@ class EventsViewModel @Inject constructor(
         return try {
             val response = eventRepository.leaveEvent(eventId)
             if (response.isSuccessful) {
+                refresh()
                 loadEventDetail(eventId)
-                loadMyEvents()
                 Result.success(Unit)
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "Error desconocido"
@@ -126,7 +137,7 @@ class EventsViewModel @Inject constructor(
         return try {
             val response = eventRepository.finishEvent(eventId)
             if (response.isSuccessful) {
-                loadOrganizingEvents()
+                refresh()
                 Result.success(Unit)
             } else {
                 val errorMsg = parseErrorMessage(response.errorBody()?.string(), "Error al finalizar evento")
@@ -167,8 +178,7 @@ class EventsViewModel @Inject constructor(
         return try {
             val response = eventRepository.deleteEvent(eventId)
             if (response.isSuccessful) {
-                loadMyEvents()
-                loadOrganizingEvents()
+                refresh()
                 Result.success(Unit)
             } else {
                 val errorMsg = parseErrorMessage(response.errorBody()?.string(), "Error al eliminar el evento")

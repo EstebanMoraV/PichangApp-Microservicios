@@ -13,4 +13,5 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     Optional<EventRegistration> findByEventIdAndUserId(Integer eventId, Integer userId);
     List<EventRegistration> findByEventId(Integer eventId);
     List<EventRegistration> findByUserId(Integer userId);
+    List<EventRegistration> findByEventIdAndStatusIn(Integer eventId, List<String> statuses);
 }
