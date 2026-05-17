@@ -38,11 +38,11 @@ public class KarmaServiceClient {
     public void registerCheckIn(Integer userId, Integer eventId) {
         try {
             String url = karmaServiceUrl + "/api/v1/karma/check-in";
-            Map<String, Integer> body = new HashMap<>();
-            body.put("userId", userId);
-            body.put("eventId", eventId);
+            Map<String, String> body = new HashMap<>();
+            body.put("userId", String.valueOf(userId));
+            body.put("eventId", String.valueOf(eventId));
 
-            HttpEntity<Map<String, Integer>> request = new HttpEntity<>(body, getHeaders());
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(body, getHeaders());
             ResponseEntity<Void> response = restTemplate.postForEntity(url, request, Void.class);
             log.info("Karma check-in registered for user {}, event {}, status {}", userId, eventId, response.getStatusCode());
         } catch (Exception e) {
