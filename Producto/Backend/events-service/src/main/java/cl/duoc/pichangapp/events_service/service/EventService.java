@@ -211,13 +211,19 @@ public class EventService {
         List<EventRegistration> registrations = eventRegistrationRepository
             .findByEventIdAndStatusIn(eventId, List.of("REGISTERED", "ATTENDED"));
 
+        log.info("Registrations encontrados para evento {}: {}", eventId, registrations.size());
+        registrations.forEach(r -> log.info("  - userId={} status={}", r.getUserId(), r.getStatus()));
+
+        log.info("Eliminando evento {}. Procesando {} participantes", eventId, registrations.size());
         // Para cada inscrito: karma + notificación
         for (EventRegistration registration : registrations) {
+            log.info("Procesando participante userId={}, status={}", registration.getUserId(), registration.getStatus());
             try {
                 // 1. Sumar karma como si hubiera asistido
                 karmaServiceClient.registerCheckIn(registration.getUserId(), eventId);
+                log.info("Karma registrado exitosamente para userId={}", registration.getUserId());
             } catch (Exception e) {
-                log.warn("Error al registrar karma para usuario {}: {}", registration.getUserId(), e.getMessage());
+                log.error("ERROR al registrar karma para userId={}: {}", registration.getUserId(), e.getMessage());
             }
             try {
                 // 2. Enviar notificación
@@ -227,8 +233,9 @@ public class EventService {
                     "El evento '" + event.getName() + "' fue cancelado. Recibiste tus puntos de karma.",
                     "EVENT_CANCELLED"
                 );
+                log.info("Notificación enviada exitosamente a userId={}", registration.getUserId());
             } catch (Exception e) {
-                log.warn("Error al enviar notificación a usuario {}: {}", registration.getUserId(), e.getMessage());
+                log.error("ERROR al enviar notificación a userId={}: {}", registration.getUserId(), e.getMessage());
             }
         }
 
