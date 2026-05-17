@@ -8,6 +8,10 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+import java.util.Date;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,16 +21,32 @@ public class NotificationServiceClient {
 
     private final RestTemplate restTemplate;
     private final String notificationServiceUrl;
-    private final String internalToken;
+    private final String jwtSecret;
     private static final Logger log = LoggerFactory.getLogger(NotificationServiceClient.class);
 
     public NotificationServiceClient(
             RestTemplateBuilder restTemplateBuilder,
             @Value("${notification.service.url}") String notificationServiceUrl,
-            @Value("${service.internal.token}") String internalToken) {
+            @Value("${app.jwt.secret}") String jwtSecret) {
         this.restTemplate = restTemplateBuilder.build();
         this.notificationServiceUrl = notificationServiceUrl;
-        this.internalToken = internalToken;
+        this.jwtSecret = jwtSecret;
+    }
+
+    private String generateInternalToken() {
+        return Jwts.builder()
+            .setSubject("events-service")
+            .setIssuedAt(new Date())
+            .setExpiration(new Date(System.currentTimeMillis() + 3600000))
+            .signWith(Keys.hmacShaKeyFor(jwtSecret.getBytes()), SignatureAlgorithm.HS256)
+            .compact();
+    }
+
+    private HttpHeaders createHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(generateInternalToken());
+        return headers;
     }
 
     public void sendNotification(Integer userId, String title, String body, String type) {
@@ -40,11 +60,7 @@ public class NotificationServiceClient {
 
     public void sendNotification(NotificationRequest request) {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(internalToken);
-            HttpEntity<NotificationRequest> entity = new HttpEntity<>(request, headers);
-
+            HttpEntity<NotificationRequest> entity = new HttpEntity<>(request, createHeaders());
             restTemplate.postForEntity(
                     notificationServiceUrl + "/api/v1/notifications/send",
                     entity,
@@ -52,6 +68,7 @@ public class NotificationServiceClient {
             );
         } catch (Exception e) {
             log.error("Error al enviar notificación al servicio: {}", e.getMessage());
+            throw new RuntimeException("Error al enviar notificacion", e);
         }
     }
 }
