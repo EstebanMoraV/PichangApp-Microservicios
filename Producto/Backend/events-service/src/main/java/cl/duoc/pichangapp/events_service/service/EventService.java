@@ -136,6 +136,14 @@ public class EventService {
         if (!event.getOrganizerId().equals(organizerId)) {
             throw new IllegalStateException("Solo el organizador puede marcar asistencia");
         }
+
+        if (LocalDateTime.now().isBefore(event.getEventDate().plusMinutes(5))) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "No puedes registrar asistencia hasta 5 minutos después del inicio del evento"
+            );
+        }
+
         EventRegistration registration = eventRegistrationRepository.findByEventIdAndUserId(eventId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "El usuario no está inscrito en este evento"));
