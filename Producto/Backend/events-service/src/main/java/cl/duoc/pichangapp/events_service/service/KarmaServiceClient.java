@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
+@SuppressWarnings("null")
 public class KarmaServiceClient {
 
     @Value("${karma.service.url:http://localhost:8082}")
