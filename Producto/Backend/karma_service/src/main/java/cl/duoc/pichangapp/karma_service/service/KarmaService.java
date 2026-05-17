@@ -38,7 +38,7 @@ public class KarmaService {
     @Value("${users.service.url}")
     private String usersServiceUrl;
 
-    private static final int INITIAL_KARMA = 100;
+    private static final int INITIAL_KARMA = 50;
     private static final int MIN_KARMA = 0;
 
     @Transactional
