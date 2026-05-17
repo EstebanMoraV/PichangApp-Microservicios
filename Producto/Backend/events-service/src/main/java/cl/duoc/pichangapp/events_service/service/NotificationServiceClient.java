@@ -25,6 +25,15 @@ public class NotificationServiceClient {
         this.notificationServiceUrl = notificationServiceUrl;
     }
 
+    public void sendNotification(Integer userId, String title, String body, String type) {
+        NotificationRequest req = new NotificationRequest();
+        req.setUserId(String.valueOf(userId));
+        req.setTitle(title);
+        req.setBody(body);
+        req.setType(type);
+        sendNotification(req);
+    }
+
     public void sendNotification(NotificationRequest request) {
         try {
             HttpHeaders headers = new HttpHeaders();

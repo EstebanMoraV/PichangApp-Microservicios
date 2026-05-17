@@ -84,8 +84,10 @@ fun EventsScreen(
                 )
             )
         }
-        viewModel.loadMyEvents()
-        viewModel.loadOrganizingEvents()
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.refresh()
     }
 
     Scaffold(
