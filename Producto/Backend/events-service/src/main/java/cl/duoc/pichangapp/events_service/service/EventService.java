@@ -9,7 +9,6 @@ import cl.duoc.pichangapp.events_service.model.EventRegistration;
 import cl.duoc.pichangapp.events_service.repository.EventRegistrationRepository;
 import cl.duoc.pichangapp.events_service.repository.EventRepository;
 import lombok.RequiredArgsConstructor;
-import cl.duoc.pichangapp.events_service.dto.NotificationRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,10 +18,12 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
 @SuppressWarnings("null")
+@Slf4j
 public class EventService {
 
     private final EventRepository eventRepository;
@@ -200,34 +201,40 @@ public class EventService {
     @Transactional
     public void deleteEvent(Integer eventId, Integer organizerId) {
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new EventNotFoundException("Evento no encontrado"));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Evento no encontrado"));
 
         if (!event.getOrganizerId().equals(organizerId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo el organizador puede eliminar el evento");
         }
 
-        event.setStatus("CANCELLED");
-        eventRepository.save(event);
+        // Obtener TODOS los inscritos con status REGISTERED o ATTENDED
+        List<EventRegistration> registrations = eventRegistrationRepository
+            .findByEventIdAndStatusIn(eventId, List.of("REGISTERED", "ATTENDED"));
 
-        List<EventRegistration> registrations = eventRegistrationRepository.findByEventId(eventId);
-        for (EventRegistration reg : registrations) {
-            if ("REGISTERED".equals(reg.getStatus()) || "ATTENDED".equals(reg.getStatus())) {
-                karmaServiceClient.registerCheckIn(reg.getUserId(), eventId);
-
-                NotificationRequest notification = new NotificationRequest();
-                notification.setUserId(reg.getUserId().toString());
-                notification.setTitle("Evento cancelado");
-                notification
-                        .setBody("El evento '" + event.getName() + "' fue cancelado. Recibirás tus puntos de karma.");
-                notification.setType("EVENT_CANCELLED");
-
-                try {
-                    notificationServiceClient.sendNotification(notification);
-                } catch (Exception e) {
-                    // Log error but continue
-                }
+        // Para cada inscrito: karma + notificación
+        for (EventRegistration registration : registrations) {
+            try {
+                // 1. Sumar karma como si hubiera asistido
+                karmaServiceClient.registerCheckIn(registration.getUserId(), eventId);
+            } catch (Exception e) {
+                log.warn("Error al registrar karma para usuario {}: {}", registration.getUserId(), e.getMessage());
+            }
+            try {
+                // 2. Enviar notificación
+                notificationServiceClient.sendNotification(
+                    registration.getUserId(),
+                    "Evento cancelado",
+                    "El evento '" + event.getName() + "' fue cancelado. Recibiste tus puntos de karma.",
+                    "EVENT_CANCELLED"
+                );
+            } catch (Exception e) {
+                log.warn("Error al enviar notificación a usuario {}: {}", registration.getUserId(), e.getMessage());
             }
         }
+
+        // Cambiar status del evento a CANCELLED
+        event.setStatus("CANCELLED");
+        eventRepository.save(event);
     }
 
     public double calculateDistance(double lat1, double lng1, double lat2, double lng2) {
