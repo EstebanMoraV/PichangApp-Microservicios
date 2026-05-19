@@ -17,15 +17,20 @@ A diferencia de otras plataformas, PichangApp implementa un **Sistema de Karma**
 - **Backend:** Microservicios con Java 17 y Spring Boot.
 - **Base de Datos:** MySQL (Relacional).
 - **Infraestructura:** Despliegue en la nube mediante Railway (PaaS).
-- **APIs de Terceros:** Google Maps Platform para Geofencing.
+- **APIs de Terceros:** Google Maps Platform para Geofencing, SendGrid para correos transaccionales.
 
 ---
 
 ## 🏗️ Arquitectura del Sistema
 El sistema se basa en un patrón de **Microservicios** para garantizar escalabilidad y alta disponibilidad:
-* **Identity-Service:** Gestión de autenticación (JWT) y perfiles.
-* **Event-Service:** Lógica de creación, búsqueda y unión a eventos deportivos.
-* **Reputation-Service:** Motor de cálculo para el sistema de Karma.
+* **api-gateway:** Enrutamiento y seguridad perimetral.
+* **users-service:** Gestión de autenticación (JWT) y perfiles.
+* **events-service:** Lógica de creación, búsqueda y unión a eventos deportivos.
+* **karma_service:** Motor de cálculo para el sistema de Karma.
+* **notification-service:** Envío de notificaciones y WebSockets.
+
+### 🌐 URL de Producción
+- **API Gateway (Producción):** https://pichangapp-microservicios-production.up.railway.app
 
 
 
@@ -33,20 +38,19 @@ El sistema se basa en un patrón de **Microservicios** para garantizar escalabil
 
 ## 📋 Estructura del Repositorio
 Siguiendo los lineamientos de la asignatura:
-* `/documentation`: Informes, Diagramas UML, Carta Gantt y Wireframes (Figma).
-* `/product`: Código fuente de los microservicios y la aplicación móvil.
-* `/database`: Scripts de creación de tablas y datos de prueba.
+* `Documentación/`: Informes, Diagramas UML, Carta Gantt y Wireframes (Figma).
+* `Producto/Backend/`: Código fuente de los microservicios.
+* `Producto/front-end/`: Aplicación móvil Android.
 
 ## 👥 Integrantes - Equipo de Desarrollo
 - **Esteban Mora** - *Arquitecto - Programador*
 - **David Salazar** - *Product Owner - Desarrollador*
-- **Martín Villegas** - *Scru Master - Desarrollador*
 
 ---
 
 ## 📅 Planificación (Hitos Principales)
-1. **Semana 4:** Finalización de Diseño y Estrategia (Experiencia 1).
-2. **Semana 11:** MVP funcional desplegado en Railway (Experiencia 2).
+1. **Semana 4:** Finalización de Diseño y Estrategia (Experiencia 1) - ✅ Completado.
+2. **Semana 11:** MVP funcional desplegado en Railway (Experiencia 2) - ✅ Completado.
 3. **Semana 15:** Control de Calidad y Pruebas Unitarias/Integración (Experiencia 3).
 
 ---
