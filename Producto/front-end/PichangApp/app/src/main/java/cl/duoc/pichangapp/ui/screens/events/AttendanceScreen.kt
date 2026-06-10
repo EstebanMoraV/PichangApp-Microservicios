@@ -189,7 +189,7 @@ fun AttendanceRow(
     snackbarHostState: SnackbarHostState,
     isActionEnabled: Boolean = true
 ) {
-    var userName by remember { mutableStateOf("Usuario #${reg.userId}") }
+    var userName by remember { mutableStateOf("Cargando…") }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(reg.userId) {

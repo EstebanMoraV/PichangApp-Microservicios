@@ -7,7 +7,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -101,8 +100,6 @@ fun ProfileScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column {
-                    ProfileRow(icon = Icons.Filled.Badge, label = "ID de Usuario", value = user?.id?.toString() ?: "N/A")
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp)
                     ProfileRow(icon = Icons.Filled.Email, label = "Correo", value = user?.correo ?: "N/A")
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp)
                     ProfileRow(icon = Icons.Filled.Person, label = "Nombre", value = "${user?.nombre} ${user?.apellido}")

@@ -20,7 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
+import cl.duoc.pichangapp.users_service.dto.AdminUserDTO;
+
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 
@@ -104,7 +107,7 @@ public class UserServiceImpl implements UserService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cuenta no verificada");
         }
 
-        String token = jwtProvider.generateToken(user.getId().toString(), user.getCorreo());
+        String token = jwtProvider.generateToken(user.getId().toString(), user.getCorreo(), user.getRole());
         long expiresIn = jwtProvider.getExpirationMs();
 
         return new JWTResponse(token, "Bearer", expiresIn, mapToDto(user));
@@ -213,9 +216,41 @@ public class UserServiceImpl implements UserService {
         return userRepository.existsById(id);
     }
 
-    // Mapeo entidad -> DTO (ajusta si tu DTO se llama distinto)
+    // ======================= Administración (rol ADMIN) =======================
+
+    @Override
+    public List<AdminUserDTO> listAllUsers() {
+        return userRepository.findAll().stream()
+                .map(this::mapToAdminDto)
+                .toList();
+    }
+
+    @Override
+    public AdminUserDTO getUserForAdmin(Integer id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+        return mapToAdminDto(user);
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(Integer id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+        if ("ADMIN".equals(user.getRole())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede eliminar a un usuario administrador");
+        }
+        userRepository.delete(user);
+    }
+
+    // Mapeo entidad -> DTO (sin exponer id; el identificador visible es el correo)
     private UserDTO mapToDto(User u) {
-        return new UserDTO(u.getId(), u.getCorreo(), u.getNombre(), u.getApellido(), u.isEnabled());
+        return new UserDTO(u.getCorreo(), u.getNombre(), u.getApellido(), u.isEnabled(), u.getRole());
+    }
+
+    // Mapeo entidad -> DTO administrativo (incluye id para uso interno del panel)
+    private AdminUserDTO mapToAdminDto(User u) {
+        return new AdminUserDTO(u.getId(), u.getCorreo(), u.getNombre(), u.getApellido(), u.isEnabled(), u.getRole());
     }
 }
 

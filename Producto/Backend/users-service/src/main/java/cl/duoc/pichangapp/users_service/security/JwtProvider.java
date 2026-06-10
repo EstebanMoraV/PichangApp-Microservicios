@@ -28,16 +28,17 @@ public class JwtProvider {
     }
 
     /**
-     * Genera un token JWT con subject = userId (string) y claim "correo".
+     * Genera un token JWT con subject = userId (string), claim "correo" y claim "role".
      * El token se firma con HS256.
      */
-    public String generateToken(String subjectId, String correo) {
+    public String generateToken(String subjectId, String correo, String role) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
                 .setSubject(subjectId)
                 .claim("correo", correo)
+                .claim("role", role)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
@@ -65,6 +66,17 @@ public class JwtProvider {
         Claims claims = Jwts.parserBuilder().setSigningKey(getSigningKey()).build()
                 .parseClaimsJws(token).getBody();
         return claims.getSubject();
+    }
+
+    /**
+     * Devuelve el rol contenido en el claim "role" del token.
+     * Si el token no incluye el claim (tokens antiguos o internos), retorna "USER" por defecto.
+     */
+    public String getRole(String token) {
+        Claims claims = Jwts.parserBuilder().setSigningKey(getSigningKey()).build()
+                .parseClaimsJws(token).getBody();
+        String role = claims.get("role", String.class);
+        return role != null ? role : "USER";
     }
 
     /**

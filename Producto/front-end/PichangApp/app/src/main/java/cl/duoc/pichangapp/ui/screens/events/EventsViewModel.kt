@@ -1,23 +1,40 @@
 package cl.duoc.pichangapp.ui.screens.events
 
+import android.content.Context
+import android.location.Geocoder
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cl.duoc.pichangapp.data.model.CreateEventRequest
 import cl.duoc.pichangapp.data.model.EventDto
 import cl.duoc.pichangapp.data.repository.EventRepository
 import cl.duoc.pichangapp.core.datastore.TokenDataStore
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.libraries.places.api.Places
+import com.google.android.libraries.places.api.model.AutocompletePrediction
+import com.google.android.libraries.places.api.model.AutocompleteSessionToken
+import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.api.net.FetchPlaceRequest
+import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
+import com.google.android.libraries.places.api.net.PlacesClient
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
 class EventsViewModel @Inject constructor(
     private val eventRepository: EventRepository,
-    private val tokenDataStore: TokenDataStore
+    private val tokenDataStore: TokenDataStore,
+    @ApplicationContext private val appContext: Context
 ) : ViewModel() {
     private val _events = MutableStateFlow<List<EventDto>>(emptyList())
     val events: StateFlow<List<EventDto>> = _events.asStateFlow()
@@ -224,7 +241,133 @@ class EventsViewModel @Inject constructor(
             val user = eventRepository.getUserById(userId)
             "${user.nombre} ${user.apellido}"
         } catch (e: Exception) {
-            "Usuario #$userId"
+            "Usuario"
+        }
+    }
+
+    // ======================= Búsqueda de dirección (Places) =======================
+
+    private val placesClient: PlacesClient? by lazy {
+        if (Places.isInitialized()) Places.createClient(appContext) else null
+    }
+    private var autocompleteSessionToken: AutocompleteSessionToken = AutocompleteSessionToken.newInstance()
+
+    private val _addressSuggestions = MutableStateFlow<List<AutocompletePrediction>>(emptyList())
+    val addressSuggestions: StateFlow<List<AutocompletePrediction>> = _addressSuggestions.asStateFlow()
+
+    private val _addressError = MutableStateFlow<String?>(null)
+    val addressError: StateFlow<String?> = _addressError.asStateFlow()
+
+    // Ubicación resuelta por la búsqueda (sugerencia seleccionada o geocodificación).
+    private val _searchedLocation = MutableStateFlow<LatLng?>(null)
+    val searchedLocation: StateFlow<LatLng?> = _searchedLocation.asStateFlow()
+
+    private val _searchedAddress = MutableStateFlow<String?>(null)
+    val searchedAddress: StateFlow<String?> = _searchedAddress.asStateFlow()
+
+    private var searchJob: Job? = null
+
+    /** Reinicia el estado de búsqueda (al entrar a la pantalla de creación). */
+    fun resetAddressSearch() {
+        searchJob?.cancel()
+        _addressSuggestions.value = emptyList()
+        _addressError.value = null
+        _searchedLocation.value = null
+        _searchedAddress.value = null
+        autocompleteSessionToken = AutocompleteSessionToken.newInstance()
+    }
+
+    /**
+     * Busca sugerencias de dirección con autocompletado.
+     * Aplica debounce de 500 ms y solo consulta con 3+ caracteres.
+     */
+    fun searchAddress(query: String) {
+        _addressError.value = null
+        searchJob?.cancel()
+
+        if (query.trim().length < 3) {
+            _addressSuggestions.value = emptyList()
+            return
+        }
+
+        val client = placesClient
+        if (client == null) {
+            _addressError.value = "Búsqueda de direcciones no disponible"
+            return
+        }
+
+        searchJob = viewModelScope.launch {
+            delay(500) // debounce
+            val request = FindAutocompletePredictionsRequest.builder()
+                .setSessionToken(autocompleteSessionToken)
+                .setCountries("CL")
+                .setQuery(query.trim())
+                .build()
+
+            client.findAutocompletePredictions(request)
+                .addOnSuccessListener { response ->
+                    _addressSuggestions.value = response.autocompletePredictions
+                    _addressError.value =
+                        if (response.autocompletePredictions.isEmpty())
+                            "Dirección no encontrada, intenta con otra"
+                        else null
+                }
+                .addOnFailureListener {
+                    _addressSuggestions.value = emptyList()
+                    _addressError.value = "Dirección no encontrada, intenta con otra"
+                }
+        }
+    }
+
+    /** Obtiene el detalle de un lugar seleccionado y actualiza la ubicación. */
+    fun selectPlace(placeId: String) {
+        val client = placesClient ?: return
+        val fields = listOf(Place.Field.LAT_LNG, Place.Field.ADDRESS, Place.Field.NAME)
+        val request = FetchPlaceRequest.builder(placeId, fields)
+            .setSessionToken(autocompleteSessionToken)
+            .build()
+
+        client.fetchPlace(request)
+            .addOnSuccessListener { response ->
+                val place = response.place
+                place.latLng?.let { _searchedLocation.value = it }
+                _searchedAddress.value = place.address ?: place.name
+                _addressSuggestions.value = emptyList()
+                _addressError.value = null
+                // Nuevo token de sesión tras completar una búsqueda.
+                autocompleteSessionToken = AutocompleteSessionToken.newInstance()
+            }
+            .addOnFailureListener {
+                _addressError.value = "No se pudo obtener la ubicación seleccionada"
+            }
+    }
+
+    /**
+     * Resuelve una dirección escrita libremente mediante geocodificación
+     * (cuando el usuario presiona "Buscar" sin elegir una sugerencia).
+     */
+    fun geocodeAddress(query: String) {
+        if (query.trim().isBlank()) return
+        _addressError.value = null
+        viewModelScope.launch {
+            try {
+                val geocoder = Geocoder(appContext, Locale.getDefault())
+                @Suppress("DEPRECATION")
+                val results = withContext(Dispatchers.IO) {
+                    geocoder.getFromLocationName(query.trim(), 1)
+                }
+                if (!results.isNullOrEmpty()) {
+                    val addr = results[0]
+                    _searchedLocation.value = LatLng(addr.latitude, addr.longitude)
+                    _searchedAddress.value = addr.getAddressLine(0) ?: query.trim()
+                    _addressSuggestions.value = emptyList()
+                    _addressError.value = null
+                } else {
+                    _addressError.value = "Dirección no encontrada, intenta con otra"
+                }
+            } catch (e: Exception) {
+                _addressError.value = "Dirección no encontrada, intenta con otra"
+            }
         }
     }
 }

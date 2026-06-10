@@ -6,6 +6,20 @@ spring:
   cloud:
     gateway:
       routes:
+        # ---- Rutas de administración (rol ADMIN; el JWT se reenvía a cada servicio) ----
+        - id: admin-users-service
+          uri: ${USERS_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/v1/admin/users/**
+        - id: admin-karma-service
+          uri: ${KARMA_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/admin/karma/**
+        - id: admin-events-service
+          uri: ${EVENTS_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/v1/admin/events/**
+        # ---- Rutas estándar ----
         - id: users-service
           uri: ${USERS_SERVICE_URL:http://localhost:8083}
           predicates:

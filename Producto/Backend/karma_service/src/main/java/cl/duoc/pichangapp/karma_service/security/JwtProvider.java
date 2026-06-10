@@ -49,6 +49,16 @@ public class JwtProvider {
         return claims.getSubject();
     }
 
+    /**
+     * Devuelve el rol del claim "role". Si no está presente, retorna "USER" por defecto.
+     */
+    public String getRole(String token) {
+        Claims claims = Jwts.parserBuilder().setSigningKey(getSigningKey()).build()
+                .parseClaimsJws(token).getBody();
+        String role = claims.get("role", String.class);
+        return role != null ? role : "USER";
+    }
+
     public long getExpirationMs() {
         return expirationMs;
     }
