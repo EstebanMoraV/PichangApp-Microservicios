@@ -1,5 +1,6 @@
 package cl.duoc.pichangapp.events_service.service;
 
+import cl.duoc.pichangapp.events_service.dto.AdminEventDTO;
 import cl.duoc.pichangapp.events_service.dto.CreateEventRequest;
 import cl.duoc.pichangapp.events_service.dto.EventRegistrationDTO;
 import cl.duoc.pichangapp.events_service.dto.EventResponseDTO;
@@ -30,6 +31,7 @@ public class EventService {
     private final EventRegistrationRepository eventRegistrationRepository;
     private final KarmaServiceClient karmaServiceClient;
     private final NotificationServiceClient notificationServiceClient;
+    private final UsersServiceClient usersServiceClient;
 
     @Transactional
     public EventResponseDTO createEvent(CreateEventRequest request, Integer organizerId) {
@@ -215,6 +217,36 @@ public class EventService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo el organizador puede eliminar el evento");
         }
 
+        cancelEventAndCompensate(event);
+    }
+
+    /**
+     * Eliminación de evento por un administrador.
+     * Mismo flujo que la eliminación por organizador (karma + notificación) pero
+     * sin la restricción de que quien elimina sea el organizador.
+     */
+    @Transactional
+    public void deleteEventAsAdmin(Integer eventId) {
+        Event event = eventRepository.findById(eventId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Evento no encontrado"));
+        cancelEventAndCompensate(event);
+    }
+
+    /**
+     * Lista todos los eventos (activos, finalizados y cancelados) para el panel de administración,
+     * resolviendo el correo del organizador.
+     */
+    public List<AdminEventDTO> listAllEventsForAdmin() {
+        java.util.Map<Integer, String> emailCache = new java.util.HashMap<>();
+        return eventRepository.findAll().stream()
+                .sorted(Comparator.comparing(Event::getEventDate, Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(event -> mapToAdminDTO(event, emailCache))
+                .collect(Collectors.toList());
+    }
+
+    private void cancelEventAndCompensate(Event event) {
+        Integer eventId = event.getId();
+
         // Obtener TODOS los inscritos con status REGISTERED o ATTENDED
         List<EventRegistration> registrations = eventRegistrationRepository
             .findByEventIdAndStatusIn(eventId, List.of("REGISTERED", "ATTENDED"));
@@ -279,6 +311,25 @@ public class EventService {
         dto.setCreatedAt(event.getCreatedAt());
         dto.setFinishedAt(event.getFinishedAt());
         dto.setDistanceKm(distance);
+        return dto;
+    }
+
+    private AdminEventDTO mapToAdminDTO(Event event, java.util.Map<Integer, String> emailCache) {
+        AdminEventDTO dto = new AdminEventDTO();
+        dto.setId(event.getId());
+        dto.setName(event.getName());
+        dto.setSport(event.getSport());
+        dto.setEventDate(event.getEventDate());
+        dto.setLocationName(event.getLocationName());
+        dto.setMaxPlayers(event.getMaxPlayers());
+        dto.setCurrentPlayers(event.getCurrentPlayers());
+        dto.setStatus(event.getStatus());
+        dto.setCreatedAt(event.getCreatedAt());
+        dto.setFinishedAt(event.getFinishedAt());
+
+        Integer organizerId = event.getOrganizerId();
+        String email = emailCache.computeIfAbsent(organizerId, usersServiceClient::getEmailByUserId);
+        dto.setOrganizerEmail(email);
         return dto;
     }
 

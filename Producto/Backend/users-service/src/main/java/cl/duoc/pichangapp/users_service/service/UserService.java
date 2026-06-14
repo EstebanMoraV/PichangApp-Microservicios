@@ -2,6 +2,7 @@ package cl.duoc.pichangapp.users_service.service;
 
 import cl.duoc.pichangapp.users_service.dto.*;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -63,6 +64,23 @@ public interface UserService {
      * Reenvía el código de verificación por correo.
      */
     void resendCode(ResendCodeRequest request);
+
+    // ======================= Administración (rol ADMIN) =======================
+
+    /**
+     * Lista todos los usuarios para el panel de administración.
+     */
+    List<AdminUserDTO> listAllUsers();
+
+    /**
+     * Obtiene el detalle de un usuario por su id (uso administrativo).
+     */
+    AdminUserDTO getUserForAdmin(Integer id);
+
+    /**
+     * Elimina un usuario por su id (uso administrativo).
+     */
+    void deleteUser(Integer id);
 }
 
 

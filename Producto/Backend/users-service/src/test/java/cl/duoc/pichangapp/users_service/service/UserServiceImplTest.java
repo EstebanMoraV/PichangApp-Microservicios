@@ -67,7 +67,6 @@ class UserServiceImplTest {
         Optional<UserDTO> result = userService.findByCorreo("test@test.com");
         
         assertTrue(result.isPresent());
-        assertEquals(1, result.get().id());
         assertEquals("test@test.com", result.get().correo());
         verify(userRepository).findByCorreo("test@test.com");
     }

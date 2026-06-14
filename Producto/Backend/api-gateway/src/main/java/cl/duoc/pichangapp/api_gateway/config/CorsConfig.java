@@ -14,9 +14,12 @@ public class CorsConfig {
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfig = new CorsConfiguration();
-        // Permitir credenciales y cualquier origen (en desarrollo)
-        // En producción se deben especificar los origenes permitidos
-        corsConfig.setAllowedOriginPatterns(Arrays.asList("*")); 
+        // Orígenes permitidos. Se incluye el patrón de Vercel para el panel de administración
+        // y "*" para desarrollo. En producción se debe restringir "*" al dominio final de Vercel.
+        corsConfig.setAllowedOriginPatterns(Arrays.asList(
+                "https://*.vercel.app", // Panel de administración desplegado en Vercel
+                "*"                       // Desarrollo (restringir en producción)
+        ));
         corsConfig.setMaxAge(3600L);
         corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         corsConfig.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "X-Requested-With"));

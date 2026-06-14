@@ -4,7 +4,10 @@ import android.location.Geocoder
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -12,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SportsScore
 import androidx.compose.material.icons.filled.Title
 import androidx.compose.material3.*
@@ -28,6 +32,7 @@ import cl.duoc.pichangapp.data.model.CreateEventRequest
 import cl.duoc.pichangapp.ui.components.PichangButton
 import cl.duoc.pichangapp.ui.components.PichangSnackbar
 import cl.duoc.pichangapp.ui.components.PichangTextField
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
@@ -79,8 +84,28 @@ fun CreateEventScreen(
     var locationName by remember { mutableStateOf("Ubicación en el mapa") }
     var locationError by remember { mutableStateOf(false) }
 
+    // Búsqueda de dirección (Places)
+    var addressQuery by remember { mutableStateOf("") }
+    val addressSuggestions by viewModel.addressSuggestions.collectAsState()
+    val addressError by viewModel.addressError.collectAsState()
+    val searchedLocation by viewModel.searchedLocation.collectAsState()
+    val searchedAddress by viewModel.searchedAddress.collectAsState()
+
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(-33.4489, -70.6693), 12f)
+    }
+
+    // Reinicia el estado de búsqueda al abrir la pantalla.
+    LaunchedEffect(Unit) { viewModel.resetAddressSearch() }
+
+    // Cuando la búsqueda resuelve una ubicación, mueve la cámara y coloca el marcador.
+    LaunchedEffect(searchedLocation) {
+        searchedLocation?.let { loc ->
+            selectedLocation = loc
+            locationName = searchedAddress ?: locationName
+            locationError = false
+            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(loc, 16f))
+        }
     }
 
     Scaffold(
@@ -235,7 +260,49 @@ fun CreateEventScreen(
                                 }
                             }
 
-                            Text("Selecciona en el mapa", fontWeight = FontWeight.Bold, color = if (locationError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                            Text("Busca una dirección o selecciónala en el mapa", fontWeight = FontWeight.Bold, color = if (locationError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+
+                            // Campo de búsqueda de dirección
+                            OutlinedTextField(
+                                value = addressQuery,
+                                onValueChange = {
+                                    addressQuery = it
+                                    viewModel.searchAddress(it)
+                                },
+                                label = { Text("Buscar dirección") },
+                                singleLine = true,
+                                isError = addressError != null,
+                                supportingText = {
+                                    if (addressError != null) {
+                                        Text(addressError!!, color = MaterialTheme.colorScheme.error)
+                                    }
+                                },
+                                trailingIcon = {
+                                    IconButton(onClick = { viewModel.geocodeAddress(addressQuery) }) {
+                                        Icon(Icons.Default.Search, contentDescription = "Buscar")
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            // Lista de sugerencias (máximo 4)
+                            if (addressSuggestions.isNotEmpty()) {
+                                Card(modifier = Modifier.fillMaxWidth()) {
+                                    LazyColumn(modifier = Modifier.heightIn(max = 220.dp)) {
+                                        items(addressSuggestions.take(4)) { prediction ->
+                                            ListItem(
+                                                headlineContent = { Text(prediction.getPrimaryText(null).toString()) },
+                                                supportingContent = { Text(prediction.getSecondaryText(null).toString()) },
+                                                modifier = Modifier.clickable {
+                                                    addressQuery = prediction.getPrimaryText(null).toString()
+                                                    viewModel.selectPlace(prediction.placeId)
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
                             Box(modifier = Modifier.fillMaxWidth().height(250.dp).background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)) {
                                 GoogleMap(
                                     modifier = Modifier.fillMaxSize(),

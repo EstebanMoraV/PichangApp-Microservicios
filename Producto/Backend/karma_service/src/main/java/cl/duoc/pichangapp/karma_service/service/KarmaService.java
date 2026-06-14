@@ -74,6 +74,38 @@ public class KarmaService {
         return buildResponseDTO(score);
     }
 
+    /**
+     * Ajuste manual de karma por un administrador.
+     * Establece el puntaje de forma absoluta, registra el movimiento en el historial
+     * con motivo ADMIN_ADJUSTMENT y recalcula la categoría automáticamente.
+     */
+    @Transactional
+    public KarmaResponseDTO adminAdjustKarma(String userId, cl.duoc.pichangapp.karma_service.dto.AdminKarmaAdjustmentDTO dto) {
+        if (dto.newKarmaScore() == null || dto.newKarmaScore() < MIN_KARMA) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "El nuevo puntaje de karma debe ser un valor mayor o igual a " + MIN_KARMA);
+        }
+
+        KarmaScore score = getOrCreateKarmaScore(userId);
+        int previousScore = score.getKarmaScore();
+        int newScore = dto.newKarmaScore();
+        int delta = newScore - previousScore;
+
+        score.setKarmaScore(newScore);
+        karmaScoreRepository.save(score);
+
+        String detail = (dto.reason() != null && !dto.reason().isBlank()) ? dto.reason() : "Ajuste manual por administrador";
+        KarmaHistory history = KarmaHistory.builder()
+                .karmaScore(score)
+                .amount(delta)
+                .reason("ADMIN_ADJUSTMENT: " + detail)
+                .build();
+        karmaHistoryRepository.save(history);
+
+        return buildResponseDTO(score);
+    }
+
     private void validateUserExistsInUsersService(String userId) {
         try {
             // Validar que el userId sea un número entero válido

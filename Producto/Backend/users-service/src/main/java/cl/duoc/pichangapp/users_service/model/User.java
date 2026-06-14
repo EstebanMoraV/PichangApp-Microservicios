@@ -40,6 +40,9 @@ public class User {
     private boolean enabled = false;
     // Estado de verificación de la cuenta (true cuando el usuario está validado)
 
+    @Column(nullable = false, length = 20)
+    private String role = "USER"; // Valores: "USER" o "ADMIN"
+
     @Column(length = 6)
     private String verificationCode;
 
