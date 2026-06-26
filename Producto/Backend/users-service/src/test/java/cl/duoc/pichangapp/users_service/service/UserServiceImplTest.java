@@ -101,6 +101,7 @@ class UserServiceImplTest {
     // ───────────────────────── Nuevos tests ─────────────────────────
 
     @Test
+    @SuppressWarnings("null") // mockUser nunca es null en el test; falso positivo del análisis JDT
     void changePassword_Success() {
         ChangePasswordRequest req = new ChangePasswordRequest("oldPass", "newPass123");
         mockUser.setContrasena("hashedOld");
@@ -115,6 +116,7 @@ class UserServiceImplTest {
     }
 
     @Test
+    @SuppressWarnings("null") // any(User.class) de Mockito; falso positivo del análisis JDT
     void changePassword_WrongCurrentPassword() {
         ChangePasswordRequest req = new ChangePasswordRequest("wrongPass", "newPass123");
         mockUser.setContrasena("hashedOld");
@@ -138,10 +140,12 @@ class UserServiceImplTest {
         assertEquals("Test", result.get(0).nombre());
         assertEquals(80, result.get(0).karmaScore());
         assertEquals("Excelente", result.get(0).categoriaKarma());
-        // No expone correo ni id (el record PerfilPublicoDTO no los tiene).
+        // El listado no incluye historial (includeHistory=false): evita N llamadas a karma.
+        assertTrue(result.get(0).history().isEmpty());
     }
 
     @Test
+    @SuppressWarnings("null") // mockUser nunca es null en el test; falso positivo del análisis JDT
     void eliminarCuenta_Success() {
         when(userRepository.findById(1)).thenReturn(Optional.of(mockUser));
 

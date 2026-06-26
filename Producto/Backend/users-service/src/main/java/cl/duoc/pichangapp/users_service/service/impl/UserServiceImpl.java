@@ -189,7 +189,8 @@ public class UserServiceImpl implements UserService {
         return userRepository
                 .findByNombreContainingIgnoreCaseOrApellidoContainingIgnoreCase(t, t)
                 .stream()
-                .map(this::toPerfilPublico)
+                // En el listado NO se incluye historial (evita N llamadas a karma-service)
+                .map(u -> toPerfilPublico(u, false))
                 .toList();
     }
 
@@ -197,7 +198,8 @@ public class UserServiceImpl implements UserService {
     public PerfilPublicoDTO getPerfilPublicoByCorreo(String correo) {
         User user = userRepository.findByCorreo(correo.toLowerCase().trim())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
-        return toPerfilPublico(user);
+        // Perfil individual: incluye historial si el usuario lo tiene visible
+        return toPerfilPublico(user, true);
     }
 
     @Override
@@ -216,15 +218,26 @@ public class UserServiceImpl implements UserService {
     }
 
     // Construye el perfil público resolviendo el karma desde karma_service.
-    private PerfilPublicoDTO toPerfilPublico(User u) {
+    // includeHistory: solo el perfil individual pide historial; el listado no, para
+    // evitar N llamadas a karma-service. El historial se omite si el usuario lo tiene oculto.
+    private PerfilPublicoDTO toPerfilPublico(User u, boolean includeHistory) {
         KarmaServiceClient.KarmaInfo info = karmaServiceClient.getKarmaInfo(u.getId());
+
+        List<PerfilPublicoDTO.HistorialItem> history = List.of();
+        if (includeHistory && Boolean.TRUE.equals(u.getHistorialVisible())) {
+            history = karmaServiceClient.getKarmaHistory(u.getId()).stream()
+                    .map(e -> new PerfilPublicoDTO.HistorialItem(e.amount(), e.reason(), e.createdAt()))
+                    .toList();
+        }
+
         return new PerfilPublicoDTO(
                 u.getCorreo(),
                 u.getNombre(),
                 u.getApellido(),
                 info.karmaScore(),
                 info.categoria(),
-                u.getHistorialVisible()
+                u.getHistorialVisible(),
+                history
         );
     }
 

@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Cliente liviano para resolver datos públicos de usuarios (p. ej. el correo del
@@ -55,7 +56,7 @@ public class UsersServiceClient {
             HttpEntity<?> entity = new HttpEntity<>(headers);
             String url = usersServiceUrl + "/api/v1/users/" + userId;
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    url, HttpMethod.GET, entity,
+                    url, Objects.requireNonNull(HttpMethod.GET), entity,
                     (Class<Map<String, Object>>) (Class<?>) Map.class);
             Map<String, Object> body = response.getBody();
             if (body != null && body.get("correo") != null) {
@@ -87,7 +88,7 @@ public class UsersServiceClient {
             HttpEntity<?> entity = new HttpEntity<>(headers);
             String url = usersServiceUrl + "/api/v1/users/" + userId;
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    url, HttpMethod.GET, entity,
+                    url, Objects.requireNonNull(HttpMethod.GET), entity,
                     (Class<Map<String, Object>>) (Class<?>) Map.class);
             Map<String, Object> body = response.getBody();
             if (body != null) {

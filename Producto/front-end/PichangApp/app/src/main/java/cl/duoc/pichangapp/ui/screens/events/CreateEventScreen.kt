@@ -257,7 +257,9 @@ fun CreateEventScreen(
                                     expanded = expandedPlayers,
                                     onDismissRequest = { expandedPlayers = false }
                                 ) {
-                                    (1..50).map { it.toString() }.forEach { option ->
+                                    // Itera el rango directo (sin construir una List<String> intermedia)
+                                    (1..50).forEach { num ->
+                                        val option = num.toString()
                                         DropdownMenuItem(
                                             text = { Text(option) },
                                             onClick = { maxPlayers = option; expandedPlayers = false }
@@ -295,7 +297,7 @@ fun CreateEventScreen(
                             if (addressSuggestions.isNotEmpty()) {
                                 Card(modifier = Modifier.fillMaxWidth()) {
                                     LazyColumn(modifier = Modifier.heightIn(max = 220.dp)) {
-                                        items(addressSuggestions.take(4)) { prediction ->
+                                        items(addressSuggestions.take(4), key = { it.placeId }) { prediction ->
                                             ListItem(
                                                 headlineContent = { Text(prediction.getPrimaryText(null).toString()) },
                                                 supportingContent = { Text(prediction.getSecondaryText(null).toString()) },
