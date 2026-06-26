@@ -142,46 +142,52 @@ fun BuscarEventosTab(events: List<cl.duoc.pichangapp.data.model.EventDto>, lat: 
     val cameraPositionState = rememberCameraPositionState {
         position = com.google.android.gms.maps.model.CameraPosition.fromLatLngZoom(com.google.android.gms.maps.model.LatLng(lat, lng), 12f)
     }
-    
-    var mapVisible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { mapVisible = true }
+
+    // Ajustes del mapa estables (no se reinstancian en cada recomposición)
+    val mapUiSettings = remember {
+        MapUiSettings(
+            zoomControlsEnabled = false,
+            scrollGesturesEnabled = true,
+            zoomGesturesEnabled = true,
+            tiltGesturesEnabled = true,
+            rotationGesturesEnabled = true
+        )
+    }
+    val mapProperties = remember { MapProperties(isMyLocationEnabled = true) }
+
+    // Lista ordenada por distancia, memorizada para no reordenar en cada recomposición
+    val sortedEvents = remember(events) { events.sortedBy { it.distanceKm ?: 0.0 } }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        AnimatedVisibility(
-            visible = mapVisible,
-            enter = fadeIn(tween(1000)),
-            modifier = Modifier.weight(0.8f).fillMaxWidth()
+        // Contenedor estable para el mapa. Sin AnimatedVisibility envolviéndolo:
+        // el nodo de animación interfería con la entrega de gestos al MapView embebido.
+        Box(
+            modifier = Modifier
+                .weight(0.8f)
+                .fillMaxWidth()
         ) {
-            Box {
-                GoogleMap(
-                    modifier = Modifier.fillMaxSize(),
-                    cameraPositionState = cameraPositionState,
-                    properties = MapProperties(isMyLocationEnabled = true),
-                    uiSettings = MapUiSettings(
-                        zoomControlsEnabled = false,
-                        scrollGesturesEnabled = true,
-                        zoomGesturesEnabled = true,
-                        tiltGesturesEnabled = true,
-                        rotationGesturesEnabled = true
+            GoogleMap(
+                modifier = Modifier.fillMaxSize(),
+                cameraPositionState = cameraPositionState,
+                properties = mapProperties,
+                uiSettings = mapUiSettings
+            ) {
+                events.forEach { event ->
+                    Marker(
+                        state = MarkerState(position = com.google.android.gms.maps.model.LatLng(event.latitude, event.longitude)),
+                        title = event.name,
+                        snippet = event.sport
                     )
-                ) {
-                    events.forEach { event ->
-                        Marker(
-                            state = MarkerState(position = com.google.android.gms.maps.model.LatLng(event.latitude, event.longitude)),
-                            title = event.name,
-                            snippet = event.sport
-                        )
-                    }
                 }
             }
         }
-        
+
         LazyColumn(
             modifier = Modifier.weight(1.2f),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            itemsIndexed(events.sortedBy { it.distanceKm ?: 0.0 }, key = { _, item -> item.id }) { index, event ->
+            itemsIndexed(sortedEvents, key = { _, item -> item.id }) { index, event ->
                 AnimatedVisibility(
                     visible = true,
                     enter = fadeIn(tween(300, delayMillis = index * 50)) + slideInHorizontally(tween(300, delayMillis = index * 50))

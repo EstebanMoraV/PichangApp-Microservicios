@@ -14,7 +14,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -70,6 +72,38 @@ public class KarmaServiceClient {
             log.warn("No se pudo obtener karma del usuario {}: {}", userId, e.getMessage());
         }
         return new KarmaInfo(null, null);
+    }
+
+    /** Una entrada del historial de karma (movimiento de puntos). */
+    public record KarmaHistoryEntry(Integer amount, String reason, String createdAt) {}
+
+    /**
+     * Historial de movimientos de karma del usuario. Lista vacía si no se puede resolver.
+     * El llamador es responsable de respetar la visibilidad del historial (historialVisible).
+     */
+    public List<KarmaHistoryEntry> getKarmaHistory(Integer userId) {
+        try {
+            String url = karmaServiceUrl + "/api/v1/karma/" + userId;
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(headers()),
+                    (Class<Map<String, Object>>) (Class<?>) Map.class);
+            Map<String, Object> body = response.getBody();
+            if (body != null && body.get("history") instanceof List<?> rawList) {
+                List<KarmaHistoryEntry> result = new ArrayList<>();
+                for (Object o : rawList) {
+                    if (o instanceof Map<?, ?> m) {
+                        Integer amount = m.get("amount") instanceof Number n ? n.intValue() : 0;
+                        String reason = m.get("reason") != null ? m.get("reason").toString() : "";
+                        String createdAt = m.get("createdAt") != null ? m.get("createdAt").toString() : "";
+                        result.add(new KarmaHistoryEntry(amount, reason, createdAt));
+                    }
+                }
+                return result;
+            }
+        } catch (Exception e) {
+            log.warn("No se pudo obtener historial de karma del usuario {}: {}", userId, e.getMessage());
+        }
+        return List.of();
     }
 
     /** Elimina el karma del usuario (borrado de cuenta). No lanza: log-and-continue. */

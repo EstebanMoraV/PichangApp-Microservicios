@@ -172,7 +172,7 @@ private fun HomeContent(state: HomeUiState, navController: NavController?) {
                 )
             }
         } else {
-            items(history.take(8)) { item ->
+            items(history.take(8), key = { it.createdAt + it.reason }) { item ->
                 ActivityRow(item, Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
             }
         }

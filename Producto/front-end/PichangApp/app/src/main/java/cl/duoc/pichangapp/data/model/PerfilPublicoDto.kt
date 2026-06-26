@@ -14,5 +14,7 @@ data class PerfilPublicoDto(
     val apellido: String? = null,
     val karmaScore: Int = 0,
     val categoriaKarma: String? = null,
-    val historialVisible: Boolean = true
+    val historialVisible: Boolean = true,
+    // Historial de karma: solo viene poblado en el perfil individual y si historialVisible == true
+    val history: List<KarmaHistoryDto> = emptyList()
 )
