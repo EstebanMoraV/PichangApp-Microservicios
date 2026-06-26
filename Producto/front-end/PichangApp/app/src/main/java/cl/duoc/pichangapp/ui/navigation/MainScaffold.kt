@@ -34,10 +34,11 @@ fun MainScaffold(
     showFab: Boolean = false,
     homeViewModel: HomeViewModel = hiltViewModel(),
     sessionViewModel: SessionViewModel = hiltViewModel(),
-    content: @Composable () -> Unit
+    content: @Composable (openDrawer: () -> Unit) -> Unit
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
     val state by homeViewModel.state.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
 
@@ -95,7 +96,7 @@ fun MainScaffold(
                 }
             }
         ) { padding ->
-            Box(Modifier.padding(padding)) { content() }
+            Box(Modifier.padding(padding)) { content(openDrawer) }
         }
     }
 

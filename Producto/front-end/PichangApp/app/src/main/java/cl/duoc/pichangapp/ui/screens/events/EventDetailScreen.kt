@@ -1,5 +1,7 @@
 package cl.duoc.pichangapp.ui.screens.events
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -30,6 +33,8 @@ import cl.duoc.pichangapp.ui.components.LoadingScreen
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
@@ -50,6 +55,7 @@ fun EventDetailScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var showCancelDialog by remember { mutableStateOf(false) }
     var showFinishDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -175,10 +181,32 @@ fun EventDetailScreen(
                     val cameraPositionState = rememberCameraPositionState {
                         position = CameraPosition.fromLatLngZoom(latLng, 14f)
                     }
+                    // scrollGesturesEnabled=true permite mover el mapa con un dedo.
+                    // La Column exterior tiene verticalScroll, pero GoogleMap consume
+                    // los eventos de toque internamente cuando está activo.
                     GoogleMap(
                         modifier = Modifier.fillMaxSize(),
                         cameraPositionState = cameraPositionState,
-                        uiSettings = com.google.maps.android.compose.MapUiSettings(zoomControlsEnabled = false)
+                        uiSettings = MapUiSettings(
+                            zoomControlsEnabled = false,
+                            scrollGesturesEnabled = true
+                        ),
+                        properties = MapProperties(),
+                        onMapLongClick = {
+                            // Long press → abrir Google Maps con la ubicación del evento
+                            val uri = Uri.parse(
+                                "geo:${e.latitude},${e.longitude}?q=${e.latitude},${e.longitude}(${Uri.encode(e.name)})"
+                            )
+                            val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                                setPackage("com.google.android.apps.maps")
+                            }
+                            if (intent.resolveActivity(context.packageManager) != null) {
+                                context.startActivity(intent)
+                            } else {
+                                // Fallback: abrir en cualquier app de mapas disponible
+                                context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                            }
+                        }
                     ) {
                         Marker(state = MarkerState(position = latLng), title = e.name)
                     }
