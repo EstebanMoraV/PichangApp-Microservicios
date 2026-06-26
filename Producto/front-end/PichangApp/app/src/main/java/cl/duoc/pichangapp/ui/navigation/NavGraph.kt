@@ -103,35 +103,36 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
 
         // ── Destinos principales (con Drawer vía MainScaffold) ──────────────────
         composable(Screen.Home.route) {
-            MainScaffold(navController = navController, showFab = true) {
-                HomeScreen(navController = navController)
+            MainScaffold(navController = navController, showFab = true) { openDrawer ->
+                HomeScreen(navController = navController, onOpenDrawer = openDrawer)
             }
         }
         composable(Screen.Karma.route) {
-            MainScaffold(navController = navController, showFab = false) {
+            MainScaffold(navController = navController, showFab = false) { _ ->
                 KarmaScreen(navController = navController)
             }
         }
         composable(Screen.Events.route) {
-            MainScaffold(navController = navController, showFab = true) {
+            MainScaffold(navController = navController, showFab = true) { _ ->
                 EventsScreen(navController = navController)
             }
         }
         composable("mis-eventos") {
-            MainScaffold(navController = navController, showFab = false) {
+            MainScaffold(navController = navController, showFab = false) { _ ->
                 MisEventosScreen(navController = navController)
             }
         }
         composable(Screen.Notifications.route) {
-            MainScaffold(navController = navController, showFab = false) {
+            MainScaffold(navController = navController, showFab = false) { _ ->
                 NotificationsScreen(navController = navController)
             }
         }
         composable("buscar-usuarios") {
-            MainScaffold(navController = navController, showFab = false) {
+            MainScaffold(navController = navController, showFab = false) { _ ->
                 BuscarUsuariosScreen(navController = navController)
             }
         }
+
 
         // ── Sub-pantallas de eventos (push, con su propia navegación) ───────────
         composable("events/create") {
