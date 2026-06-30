@@ -15,8 +15,4 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3. Insertar un usuario de prueba (opcional)
--- La contraseña es 'password123' hasheada con BCrypt
-INSERT INTO users (correo, contrasena, nombre, apellido, enabled) 
-SELECT 'test@pichangapp.cl', '$2a$10$8.UnVuG9HHgffUDAlk8q6OuVGkqEnAdSiaLzBx6QC9330XoNteSdq', 'Esteban', 'Pichanguero', TRUE
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE correo = 'test@pichangapp.cl');
+-- Los datos de prueba deben insertarse mediante scripts separados con variables de entorno.
